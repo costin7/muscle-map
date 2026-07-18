@@ -13,20 +13,12 @@ jobs:
   import-source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Extract source and restore public images
+      - name: Extract complete source archive
         shell: bash
         run: |
           unzip -o muscle-map-source.zip -d .
-          mkdir -p public
-          curl -fsSL --retry 3 https://jitu-muscle-map.abelallsman5227.chatgpt.site/anterior-muscles.jpg -o public/anterior-muscles.jpg
-          curl -fsSL --retry 3 https://jitu-muscle-map.abelallsman5227.chatgpt.site/posterior-muscles.jpg -o public/posterior-muscles.jpg
-          curl -fsSL --retry 3 https://jitu-muscle-map.abelallsman5227.chatgpt.site/og.png -o public/og.png
-          printf '%s  %s\n' \
-            cfe5569967a4634dcfea4cda045ae597706f8e3711cc2b6239e089bfc4202ee6 public/anterior-muscles.jpg \
-            e94620c39f932a4bd7d88158072988e3cd868ce5e9a8558db74fcffae054b90f public/posterior-muscles.jpg \
-            5cfb58335ae0a6ddcc5a6eff125d3e7d7e66e59a78bd8115f6037eb6fc9fbde7 public/og.png | sha256sum -c -
           rm muscle-map-source.zip
 
       - name: Commit imported source
@@ -35,5 +27,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "Import muscle map source"
+          git diff --cached --quiet || git commit -m "Import complete muscle map source"
           git push
