@@ -24,7 +24,8 @@ test("server-renders the medical 3D muscle map", async () => {
   assert.match(html, /REAL ANATOMY · 3D/);
   assert.match(html, /可旋转的写实人体肌肉 3D 模型/);
   assert.match(html, /动态动作演示/);
-  assert.match(html, /51<\/strong><span>精细结构/);
+  assert.match(html, /21<\/strong><span>大肌群/);
+  assert.match(html, /56<\/strong><span>精细结构/);
 });
 
 test("uses a licensed medical model with touch controls and a safe fallback", async () => {
@@ -40,12 +41,19 @@ test("uses a licensed medical model with touch controls and a safe fallback", as
   assert.match(model, /touch-action/);
   assert.match(model, /positionAndNormalFromPoint/);
   assert.match(model, /setAlphaMode\("OPAQUE"\)/);
-  assert.match(model, /setBaseColorFactor\(\[red, green, blue, 1\]\)/);
+  assert.match(model, /setBaseColorFactor\("#d94335"\)/);
+  assert.match(model, /INTERACTION_REGIONS/);
+  assert.match(model, /data-visibility-attribute/);
+  assert.match(model, /anatomy-hotspot-3d/);
   assert.match(model, /camera-target/);
   assert.match(model, /点按肌肉/);
   assert.match(model, /返回全身/);
   assert.match(model, /BodyParts3D \/ Optima/);
   assert.match(model, /anterior-muscles\.jpg/);
+  assert.match(page, /菱形肌/);
+  assert.match(page, /冈下肌/);
+  assert.match(page, /前锯肌/);
+  assert.match(page, /大圆肌/);
   assert.match(page, /<Anatomy3D/);
   assert.match(vercelConfig, /models\/muscular\.glb/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
