@@ -140,6 +140,7 @@ button { color: inherit; }
 .muscle-chips { display: flex; gap: 7px; overflow-x: auto; padding: 16px; scrollbar-width: thin; scrollbar-color: #c9c5bd transparent; }
 .muscle-chips button { position: relative; flex: 0 0 auto; min-width: 136px; padding: 11px 13px; text-align: left; border: 1px solid var(--line); border-radius: 11px; background: transparent; cursor: pointer; transition: .2s ease; }
 .muscle-chips button span { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 720; }
+.muscle-chips button span > .interactive-muscle-dot { width: 6px; height: 6px; display: inline-block; margin: 0 7px 1px 0; border-radius: 50%; background: #d94335; box-shadow: 0 0 0 3px rgba(217, 67, 53, .11); }
 .muscle-chips button small { display: block; max-width: 105px; color: #969a95; font-size: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .muscle-chips button em { position: absolute; right: 8px; top: 8px; padding: 3px 5px; border-radius: 999px; background: var(--mint); color: #596857; font-size: 7px; font-style: normal; font-weight: 750; }
 .muscle-chips button:hover, .muscle-chips button.active { border-color: var(--ink); background: var(--ink); color: white; }
@@ -471,9 +472,16 @@ footer .disclaimer { justify-self: end; max-width: 400px; color: #989c97; font-s
 .anatomy-3d::after { content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; width: 1px; background: linear-gradient(transparent 6%, rgba(63, 58, 51, .12) 20%, rgba(63, 58, 51, .12) 80%, transparent 94%); pointer-events: none; }
 .anatomy-3d::before { left: 7%; }
 .anatomy-3d::after { right: 7%; }
-.anatomy-model-viewer { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; display: block; background: transparent; opacity: 1; filter: saturate(1.28) contrast(1.14); --progress-bar-height: 0px; --poster-color: transparent; cursor: grab; outline-offset: -5px; }
+.anatomy-model-viewer { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; display: block; background: transparent; opacity: 1; filter: saturate(1.18) contrast(1.18); --progress-bar-height: 0px; --poster-color: transparent; cursor: grab; outline-offset: -5px; }
 .anatomy-model-viewer:active { cursor: grabbing; }
 .anatomy-3d[data-focused="true"] .anatomy-model-viewer { cursor: zoom-out; }
+.anatomy-hotspot-3d { position: relative; width: 17px; height: 17px; padding: 0; border: 2px solid rgba(255, 255, 255, .96); border-radius: 50%; background: rgba(217, 67, 53, .2); box-shadow: 0 0 0 6px rgba(217, 67, 53, .13), 0 6px 18px rgba(78, 21, 17, .28); opacity: 0; transform: translate(-50%, -50%) scale(.72); pointer-events: none; cursor: pointer; transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease; }
+.anatomy-hotspot-3d[visible] { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+.anatomy-hotspot-3d > span { position: absolute; inset: 3px; border-radius: inherit; background: #d94335; }
+.anatomy-hotspot-3d::after { content: attr(data-label); position: absolute; left: calc(100% + 9px); top: 50%; min-width: max-content; padding: 6px 9px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 999px; color: #fff; background: rgba(29, 29, 31, .88); box-shadow: 0 8px 24px rgba(24, 21, 20, .18); font-size: 8px; font-weight: 760; letter-spacing: .03em; opacity: 0; transform: translate(-4px, -50%); pointer-events: none; backdrop-filter: blur(12px); transition: .18s ease; }
+.anatomy-hotspot-3d:hover, .anatomy-hotspot-3d:focus-visible, .anatomy-hotspot-3d[data-active="true"] { transform: translate(-50%, -50%) scale(1.2); box-shadow: 0 0 0 9px rgba(217, 67, 53, .16), 0 8px 24px rgba(78, 21, 17, .3); }
+.anatomy-hotspot-3d:hover::after, .anatomy-hotspot-3d:focus-visible::after, .anatomy-hotspot-3d[data-active="true"]::after { opacity: 1; transform: translate(0, -50%); }
+.anatomy-hotspot-3d:focus-visible { outline: 2px solid #1d1d1f; outline-offset: 4px; }
 .anatomy-3d-status { position: absolute; z-index: 5; top: 26px; left: 28px; display: grid; grid-template-columns: auto auto; align-items: center; gap: 6px 10px; max-width: calc(100% - 56px); color: #6b6860; font-size: 8px; letter-spacing: .13em; pointer-events: none; }
 .anatomy-3d-status span { display: inline-flex; align-items: center; gap: 7px; }
 .anatomy-3d-status i { width: 7px; height: 7px; border-radius: 50%; background: #a93b2d; box-shadow: 0 0 0 5px rgba(169, 59, 45, .09); }

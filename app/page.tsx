@@ -62,11 +62,15 @@ const MOTION_BY_MUSCLE: Record<string, MotionProfile> = {
   forearm: { kind: "wrist-flexion", name: "腕屈伸控制", english: "Wrist control", cue: "前臂肌群控制手腕与手指，并在抓握时把腕关节稳定在合适位置。" },
   abs: { kind: "trunk-flexion", name: "躯干屈曲", english: "Trunk flexion", cue: "腹直肌让胸廓向骨盆靠近，同时限制腰椎过度伸展。" },
   obliques: { kind: "trunk-rotation", name: "躯干旋转", english: "Trunk rotation", cue: "两侧腹斜肌形成协同，让胸廓旋转并控制身体抵抗外力扭转。" },
+  "serratus-anterior": { kind: "scapular-rotation", name: "肩胛前伸与上回旋", english: "Scapular protraction", cue: "前锯肌把肩胛骨贴稳在胸廓，并在推拳和手臂过顶时带动肩胛前伸、上回旋。" },
   adductors: { kind: "hip-adduction", name: "髋内收", english: "Hip adduction", cue: "大腿内收肌把腿拉向身体中线，并在单腿支撑时稳定骨盆。" },
   quadriceps: { kind: "knee-extension", name: "伸膝", english: "Knee extension", cue: "股四头肌把弯曲的小腿伸直，是蹲起、跳跃和上台阶的主力。" },
   tibialis: { kind: "ankle-dorsiflexion", name: "踝背屈", english: "Ankle dorsiflexion", cue: "胫骨前肌把脚尖拉向小腿，并在落地时控制前脚掌缓慢下降。" },
   trapezius: { kind: "scapular-rotation", name: "肩胛上回旋", english: "Scapular upward rotation", cue: "斜方肌上、下束协同，让肩胛骨在手臂过顶时平稳转动。" },
   "rotator-cuff": { kind: "shoulder-rotation", name: "肩外旋稳定", english: "External rotation", cue: "肩袖在旋转上臂的同时，把肱骨头稳定在肩胛盂中央。" },
+  infraspinatus: { kind: "shoulder-rotation", name: "肩外旋", english: "Shoulder external rotation", cue: "冈下肌从肩胛骨后侧拉动肱骨外旋，并持续压稳肱骨头。" },
+  rhomboids: { kind: "scapular-rotation", name: "肩胛后缩", english: "Scapular retraction", cue: "菱形肌把肩胛骨拉向脊柱，并协助下回旋与贴壁稳定。" },
+  "teres-major": { kind: "shoulder-adduction", name: "肩伸与内收", english: "Shoulder extension", cue: "大圆肌协同背阔肌，把上臂拉向身体并向后伸展、内旋。" },
   triceps: { kind: "elbow-extension", name: "伸肘", english: "Elbow extension", cue: "肱三头肌把弯曲的手肘伸直，完成推起、投掷和支撑。" },
   lats: { kind: "shoulder-adduction", name: "肩内收与伸展", english: "Shoulder adduction", cue: "背阔肌把高位手臂拉向身体和髋部，是引体与下拉动作的主力。" },
   erectors: { kind: "spine-extension", name: "脊柱伸展控制", english: "Spinal extension", cue: "竖脊肌让躯干回到直立，并在髋铰链中抵抗脊柱被负重拉弯。" },
@@ -197,6 +201,26 @@ const MUSCLES: Muscle[] = [
     caution: "旋转动作应来自髋与胸椎协同，避免把所有扭力集中到腰椎。",
   },
   {
+    id: "serratus-anterior",
+    name: "前锯肌",
+    english: "Serratus anterior",
+    view: "front",
+    region: "躯干",
+    position: { x: 38.8, y: 31.8 },
+    summary: "沿胸廓外侧呈锯齿状连接肋骨与肩胛骨，让肩胛骨贴住胸廓并顺畅前伸、上回旋。",
+    functions: ["肩胛前伸：推拳、俯卧撑顶端继续把地面推远", "与斜方肌协同上回旋肩胛，支持手臂过顶", "把肩胛骨内侧缘稳定在胸廓表面"],
+    training: [
+      { name: "俯卧撑加号", dose: "3 组 × 10–15 次", cue: "手肘伸直后继续把上背推圆一点" },
+      { name: "墙面滑动", dose: "3 组 × 8–12 次", cue: "前臂贴墙，肩胛随手臂向上转动" },
+      { name: "单臂绳索前伸", dose: "3 组 × 每侧 10–15 次", cue: "胸廓稳定，让肩胛绕胸廓向前滑" },
+    ],
+    recovery: [
+      { name: "侧卧胸廓呼吸", dose: "每侧 5 次慢呼吸", cue: "吸气扩张侧后方肋骨，不强压腋窝" },
+      { name: "婴儿式前伸", dose: "30 秒 × 2", cue: "双手向远处延伸，保持肩胛自然上回旋" },
+    ],
+    caution: "肩胛内侧缘明显翘起并伴随抬臂无力时，不要只靠滚压处理，应进行专业评估。",
+  },
+  {
     id: "adductors",
     name: "大腿内收肌",
     english: "Hip adductors",
@@ -295,6 +319,66 @@ const MUSCLES: Muscle[] = [
       { name: "后肩轻柔球压", dose: "每侧 45–60 秒", cue: "避开肩峰与肱骨头等骨点" },
     ],
     caution: "肩袖训练更看重控制与耐力；出现夜间痛、明显无力或抬臂疼痛弧时应先评估。",
+  },
+  {
+    id: "infraspinatus",
+    name: "冈下肌",
+    english: "Infraspinatus",
+    view: "back",
+    region: "上肢",
+    position: { x: 40.8, y: 25.8 },
+    summary: "覆盖肩胛冈下窝的大部分区域，是肩外旋和肱骨头后侧稳定的关键肩袖肌。",
+    functions: ["外旋肱骨，让前臂在屈肘位向外打开", "与肩胛下肌形成前后力偶，压稳肱骨头", "抬臂和投掷时提供肩关节动态稳定"],
+    training: [
+      { name: "侧卧外旋", dose: "3 组 × 10–15 次", cue: "肘旁夹毛巾，重量轻并慢放" },
+      { name: "绳索外旋", dose: "3 组 × 12–18 次", cue: "肩头保持居中，不用肩胛后缩代偿" },
+      { name: "面拉加外旋", dose: "3 组 × 10–15 次", cue: "先拉向眉心，再让拳头向后转" },
+    ],
+    recovery: [
+      { name: "横臂拉伸", dose: "每侧 25–30 秒 × 2", cue: "肩胛保持贴背，不把肩头顶向前" },
+      { name: "靠墙球压", dose: "每侧 45–60 秒", cue: "只压肩胛骨表面的肌腹，保持温和" },
+    ],
+    caution: "外旋明显无力、夜间痛或抬臂痛持续存在时，应先排查肩袖损伤。",
+  },
+  {
+    id: "rhomboids",
+    name: "菱形肌",
+    english: "Rhomboid major & minor",
+    view: "back",
+    region: "躯干",
+    position: { x: 46.2, y: 28.5 },
+    summary: "位于斜方肌深层、连接脊柱与肩胛骨内侧缘，由大菱形肌和小菱形肌组成。",
+    functions: ["肩胛后缩：把肩胛骨拉向脊柱", "协助肩胛下回旋，并稳定肩胛内侧缘", "拉、划动作中与斜方肌中束共同控制肩胛"],
+    training: [
+      { name: "胸托划船", dose: "3–4 组 × 8–12 次", cue: "先让肩胛向脊柱靠拢，再拉手肘" },
+      { name: "俯卧 T 举", dose: "3 组 × 12–15 次", cue: "重量很轻，颈部保持放松" },
+      { name: "弹力带划船停顿", dose: "3 组 × 12–18 次", cue: "末端停一秒，不用过度挺胸代偿" },
+    ],
+    recovery: [
+      { name: "抱肩上背拉伸", dose: "30 秒 × 2", cue: "双手抱肩，呼气时让肩胛向外滑" },
+      { name: "靠墙球压", dose: "每侧 45–60 秒", cue: "沿肩胛内侧肌腹移动，避开脊柱和骨缘" },
+    ],
+    caution: "菱形肌位于斜方肌深层，模型标记表示其解剖投影位置，不代表表层可完全看见。",
+  },
+  {
+    id: "teres-major",
+    name: "大圆肌",
+    english: "Teres major",
+    view: "back",
+    region: "上肢",
+    position: { x: 39.8, y: 29.2 },
+    summary: "从肩胛骨下角连向肱骨，位于后腋窝附近，常与背阔肌协同发力。",
+    functions: ["肩伸：把上臂从前方拉向身体后侧", "肩内收：把抬起的手臂拉回身体", "肩内旋，并协助稳定肱骨"],
+    training: [
+      { name: "窄握高位下拉", dose: "3–4 组 × 8–12 次", cue: "手肘向髋部移动，避免耸肩" },
+      { name: "单臂直臂下压", dose: "3 组 × 每侧 10–15 次", cue: "肩胛稳定，上臂画弧向后下方" },
+      { name: "单臂划船", dose: "3 组 × 每侧 8–12 次", cue: "手肘贴近身体，拉向后侧裤袋" },
+    ],
+    recovery: [
+      { name: "高位侧伸", dose: "每侧 30 秒 × 2", cue: "抓住固定物向后坐髋，感受腋后拉长" },
+      { name: "后腋窝轻滚", dose: "每侧 45–60 秒", cue: "压肌腹，不深入腋窝神经血管区" },
+    ],
+    caution: "后腋窝麻木、放射痛或肩前夹痛时，不要用强力滚压代替评估。",
   },
   {
     id: "triceps",
@@ -584,6 +668,35 @@ const PARTS_BY_MUSCLE: Partial<Record<string, MusclePart[]>> = {
       release: "仰卧屈膝做环周呼吸，吸气时让侧腰和后腰同时扩张。",
     },
   ],
+  "serratus-anterior": [
+    {
+      id: "serratus-superior",
+      name: "上部纤维",
+      english: "Superior fibers",
+      location: "主要连接上位肋骨与肩胛骨上角附近。",
+      role: "帮助肩胛骨贴稳胸廓，并为肩胛旋转提供稳定轴。",
+      training: ["墙面前伸", "轻阻力肩胛俯卧撑", "墙面滑动"],
+      release: "用侧后方胸廓呼吸改善活动，不直接强压肋骨。",
+    },
+    {
+      id: "serratus-middle",
+      name: "中部纤维",
+      english: "Intermediate fibers",
+      location: "从中上位肋骨走向肩胛骨内侧缘。",
+      role: "明显参与肩胛前伸，让肩胛骨沿胸廓向外滑动。",
+      training: ["俯卧撑加号", "单臂绳索前伸", "熊爬"],
+      release: "抱肩并做长呼气，让肩胛自然向外滑动。",
+    },
+    {
+      id: "serratus-inferior",
+      name: "下部纤维",
+      english: "Inferior fibers",
+      location: "由下位肋骨汇向肩胛骨下角，纤维呈扇形。",
+      role: "与斜方肌共同完成肩胛上回旋，是过顶动作的重要部分。",
+      training: ["墙面滑动抬离", "陆雷管推举", "过顶前伸"],
+      release: "婴儿式向远处延伸双手，配合侧后方吸气。",
+    },
+  ],
   adductors: [
     {
       id: "adductor-magnus",
@@ -734,6 +847,26 @@ const PARTS_BY_MUSCLE: Partial<Record<string, MusclePart[]>> = {
       role: "肩内旋并从前方稳定肱骨头，与后三块肩袖形成力偶。",
       training: ["弹力带内旋", "腹前等长内旋", "轻量熊爬"],
       release: "它位置很深，不建议自行强压腋窝；用温和外旋活动代替。",
+    },
+  ],
+  rhomboids: [
+    {
+      id: "rhomboid-minor",
+      name: "小菱形肌",
+      english: "Rhomboid minor",
+      location: "位于大菱形肌上方，连接下颈椎、上胸椎与肩胛冈内侧端。",
+      role: "后缩并稳定肩胛骨，协助肩胛下回旋。",
+      training: ["俯卧 T 举", "高位弹力带划船", "肩胛后缩等长"],
+      release: "抱肩并长呼气，让肩胛外展；避免直接压脊柱。",
+    },
+    {
+      id: "rhomboid-major",
+      name: "大菱形肌",
+      english: "Rhomboid major",
+      location: "位于小菱形肌下方，从上胸椎斜向肩胛骨内侧缘。",
+      role: "强力后缩肩胛，并在划船和负重拉动中稳定肩胛骨。",
+      training: ["胸托划船", "弹力带划船停顿", "单臂绳索划船"],
+      release: "靠墙球压肩胛内侧肌腹，保持温和并避开骨缘。",
     },
   ],
   triceps: [
@@ -1095,7 +1228,7 @@ export default function Home() {
             <div className="muscle-chips">
               {searchResults.map((muscle) => (
                 <button key={muscle.id} className={activeId === muscle.id ? "active" : ""} onClick={() => selectMuscle(muscle)}>
-                  <span>{muscle.name}</span><small>{muscle.english}</small>
+                  <span><i className="interactive-muscle-dot" aria-hidden="true" />{muscle.name}</span><small>{muscle.english}</small>
                   {(PARTS_BY_MUSCLE[muscle.id]?.length ?? 0) > 0 && <em>{PARTS_BY_MUSCLE[muscle.id]?.length} 细分</em>}
                 </button>
               ))}
