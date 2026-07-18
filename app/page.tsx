@@ -1223,12 +1223,12 @@ export default function Home() {
             />
           </div>
 
-          <div className="muscle-rail" aria-label="肌群快速选择">
-            <div className="rail-meta"><span>{query ? "搜索结果" : bodyView === "front" ? "正面肌群" : "背面肌群"}</span><b>{searchResults.length.toString().padStart(2, "0")}</b></div>
+          <div className="muscle-rail" aria-label="肌群精准选择">
+            <div className="rail-meta"><span>{query ? "搜索结果" : "精准肌群目录"}</span><b>{searchResults.length.toString().padStart(2, "0")}</b></div>
             <div className="muscle-chips">
               {searchResults.map((muscle) => (
                 <button key={muscle.id} className={activeId === muscle.id ? "active" : ""} onClick={() => selectMuscle(muscle)}>
-                  <span><i className="interactive-muscle-dot" aria-hidden="true" />{muscle.name}</span><small>{muscle.english}</small>
+                  <span>{muscle.name}</span><small>{muscle.english}</small>
                   {(PARTS_BY_MUSCLE[muscle.id]?.length ?? 0) > 0 && <em>{PARTS_BY_MUSCLE[muscle.id]?.length} 细分</em>}
                 </button>
               ))}

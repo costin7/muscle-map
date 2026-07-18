@@ -140,7 +140,6 @@ button { color: inherit; }
 .muscle-chips { display: flex; gap: 7px; overflow-x: auto; padding: 16px; scrollbar-width: thin; scrollbar-color: #c9c5bd transparent; }
 .muscle-chips button { position: relative; flex: 0 0 auto; min-width: 136px; padding: 11px 13px; text-align: left; border: 1px solid var(--line); border-radius: 11px; background: transparent; cursor: pointer; transition: .2s ease; }
 .muscle-chips button span { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 720; }
-.muscle-chips button span > .interactive-muscle-dot { width: 6px; height: 6px; display: inline-block; margin: 0 7px 1px 0; border-radius: 50%; background: #d94335; box-shadow: 0 0 0 3px rgba(217, 67, 53, .11); }
 .muscle-chips button small { display: block; max-width: 105px; color: #969a95; font-size: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .muscle-chips button em { position: absolute; right: 8px; top: 8px; padding: 3px 5px; border-radius: 999px; background: var(--mint); color: #596857; font-size: 7px; font-style: normal; font-weight: 750; }
 .muscle-chips button:hover, .muscle-chips button.active { border-color: var(--ink); background: var(--ink); color: white; }
@@ -539,6 +538,79 @@ footer .disclaimer { justify-self: end; max-width: 400px; color: #989c97; font-s
   .anatomy-3d-help { left: 16px; right: 16px; bottom: 106px; text-align: center; line-height: 1.65; }
   .anatomy-focus-chip { bottom: 64px; }
   .anatomy-3d-controls { right: 50%; bottom: 17px; transform: translateX(50%); }
+}
+
+/* 3D medical atlas refresh: fixed controls replace approximate model hotspots. */
+.anatomy-card { border-color: #deddd8; box-shadow: 0 24px 70px rgba(31, 30, 27, .065); }
+.anatomy-stage-3d {
+  min-height: 760px;
+  background:
+    radial-gradient(circle at 58% 42%, rgba(255, 255, 255, .98) 0 10%, rgba(255, 255, 255, .44) 34%, transparent 62%),
+    linear-gradient(145deg, #f4f3ef 0%, #eceae5 100%);
+}
+.anatomy-stage-3d::before { display: none; }
+.anatomy-stage-3d::after { left: 34%; right: 15%; bottom: 5.5%; height: 10%; background: radial-gradient(ellipse, rgba(49, 45, 40, .12), transparent 67%); filter: blur(14px); }
+.anatomy-3d { color: #262521; }
+.anatomy-3d::before,
+.anatomy-3d::after { display: none; }
+.anatomy-model-viewer { inset: 14px 0 16px 72px; width: calc(100% - 72px); height: calc(100% - 30px); filter: contrast(1.04) saturate(.94); }
+.anatomy-3d[data-focused="true"] .anatomy-model-viewer { cursor: grab; }
+
+.anatomy-3d-heading { position: absolute; z-index: 5; top: 30px; right: 30px; max-width: 220px; display: grid; justify-items: end; text-align: right; pointer-events: none; }
+.anatomy-3d-heading > span { color: #8c8982; font-size: 7px; font-weight: 700; letter-spacing: .19em; }
+.anatomy-3d-heading > strong { margin-top: 8px; font-family: "Songti SC", "STSong", Georgia, serif; font-size: 30px; font-weight: 500; letter-spacing: -.04em; }
+.anatomy-3d-heading > small { margin-top: 2px; color: #8b8881; font-family: Georgia, serif; font-size: 9px; font-style: italic; }
+
+.anatomy-directory { position: absolute; z-index: 6; left: 24px; top: 128px; width: 158px; padding: 15px 13px 13px; border: 1px solid rgba(43, 41, 37, .1); border-radius: 18px; background: rgba(250, 249, 246, .79); box-shadow: 0 16px 45px rgba(49, 45, 40, .07); backdrop-filter: blur(18px); }
+.anatomy-directory > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 4px 11px; border-bottom: 1px solid rgba(43, 41, 37, .1); }
+.anatomy-directory > div span { color: #3e3c37; font-size: 9px; font-weight: 760; letter-spacing: .1em; }
+.anatomy-directory > div small { color: #9a9790; font-size: 6px; }
+.anatomy-directory ol { display: grid; gap: 2px; margin: 9px 0 0; padding: 0; list-style: none; }
+.anatomy-directory button { width: 100%; min-height: 31px; display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 4px; padding: 0 8px; border: 0; border-radius: 9px; color: #77736d; background: transparent; text-align: left; cursor: pointer; transition: color .18s ease, background .18s ease, transform .18s ease; }
+.anatomy-directory button > span { color: #aaa69f; font-family: Georgia, serif; font-size: 7px; }
+.anatomy-directory button > b { font-size: 9px; font-weight: 680; }
+.anatomy-directory button:hover { color: #252420; background: rgba(255, 255, 255, .82); transform: translateX(2px); }
+.anatomy-directory button.active { color: #fff; background: #2c2b27; box-shadow: 0 7px 18px rgba(35, 33, 29, .13); }
+.anatomy-directory button.active > span { color: #d9d5cd; }
+.anatomy-directory button:focus-visible { outline: 2px solid #9d3f34; outline-offset: 2px; }
+
+.anatomy-3d-help { left: 210px; bottom: 24px; display: flex; align-items: center; gap: 12px; color: #9a9690; font-size: 7px; letter-spacing: .07em; }
+.anatomy-3d-help b { color: #494641; }
+.anatomy-3d-help span { padding-left: 12px; border-left: 1px solid rgba(48, 46, 42, .16); }
+.anatomy-3d-controls { right: 24px; bottom: 18px; border-color: rgba(43, 41, 37, .1); background: rgba(255, 255, 255, .78); box-shadow: 0 9px 28px rgba(48, 44, 39, .08); }
+.anatomy-3d-controls button { color: #67635d; }
+.anatomy-license { top: auto; right: auto; left: 28px; bottom: 25px; color: #a4a098; }
+.anatomy-license a { color: #7a766f; }
+.anatomy-loading { background: linear-gradient(145deg, rgba(244, 243, 239, .98), rgba(236, 234, 229, .98)); }
+.anatomy-loading-mark i { background: #b64a3e; }
+.anatomy-loading > b i { background: #b64a3e; }
+
+.muscle-rail { grid-template-columns: 142px 1fr; background: #fbfaf7; }
+.rail-meta { padding: 19px 20px; }
+.rail-meta span { color: #79756f; font-size: 8px; font-weight: 720; }
+.rail-meta b { color: #35332f; font-size: 24px; }
+.muscle-chips { gap: 8px; padding: 14px; }
+.muscle-chips button { min-width: 142px; padding: 12px 13px; border-color: #e2e0da; border-radius: 14px; background: rgba(255, 255, 255, .72); }
+.muscle-chips button:hover,
+.muscle-chips button.active { border-color: #2c2b27; background: #2c2b27; box-shadow: 0 8px 20px rgba(35, 33, 29, .11); transform: translateY(-1px); }
+
+@media (max-width: 980px) {
+  .anatomy-model-viewer { left: 44px; width: calc(100% - 44px); }
+  .anatomy-directory { left: 18px; width: 150px; }
+}
+
+@media (max-width: 560px) {
+  .anatomy-stage-3d { min-height: 600px; }
+  .anatomy-model-viewer { inset: 42px 0 54px; width: 100%; height: calc(100% - 96px); }
+  .anatomy-directory { display: none; }
+  .anatomy-3d-heading { top: 19px; left: 18px; right: 18px; justify-items: start; text-align: left; }
+  .anatomy-3d-heading > strong { margin-top: 5px; font-size: 24px; }
+  .anatomy-3d-heading > small { display: none; }
+  .anatomy-license { display: none; }
+  .anatomy-3d-help { left: 12px; right: 12px; bottom: 70px; justify-content: center; text-align: center; }
+  .anatomy-3d-help span { display: none; }
+  .anatomy-3d-controls { right: 50%; bottom: 16px; transform: translateX(50%); }
+  .muscle-rail { grid-template-columns: 88px 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
