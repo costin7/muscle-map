@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host?.includes("localhost") ? "http" : "https");
   const origin = host ? `${protocol}://${host}` : "http://localhost:3000";
   const title = "肌图 Muscle Map｜人体肌群互动学习";
-  const description = "通过互动人体肌群图谱，了解每块关键肌群的功能、训练方式与恢复策略。";
+  const description = "通过互动人体图谱，了解 17 个大肌群、51 个肌束与肌头的功能、训练方式和恢复策略。";
 
   return {
     title,
