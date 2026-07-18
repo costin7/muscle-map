@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
@@ -28,6 +28,52 @@ type Muscle = {
   training: { name: string; dose: string; cue: string }[];
   recovery: { name: string; dose: string; cue: string }[];
   caution: string;
+};
+
+type MotionKind =
+  | "shoulder-abduction"
+  | "chest-adduction"
+  | "elbow-flexion"
+  | "wrist-flexion"
+  | "trunk-flexion"
+  | "trunk-rotation"
+  | "hip-adduction"
+  | "knee-extension"
+  | "ankle-dorsiflexion"
+  | "scapular-rotation"
+  | "shoulder-rotation"
+  | "elbow-extension"
+  | "shoulder-adduction"
+  | "spine-extension"
+  | "hip-extension"
+  | "knee-flexion"
+  | "plantar-flexion";
+
+type MotionProfile = {
+  kind: MotionKind;
+  name: string;
+  english: string;
+  cue: string;
+};
+
+const MOTION_BY_MUSCLE: Record<string, MotionProfile> = {
+  deltoid: { kind: "shoulder-abduction", name: "肩外展", english: "Shoulder abduction", cue: "三角肌中束把手臂从体侧抬向肩高，肩胛骨同时平稳上回旋。" },
+  chest: { kind: "chest-adduction", name: "肩水平内收", english: "Horizontal adduction", cue: "胸大肌把展开的上臂合向身体前方，是卧推、夹胸和拥抱动作的核心。" },
+  biceps: { kind: "elbow-flexion", name: "屈肘与旋后", english: "Elbow flexion", cue: "肱二头肌缩短，让前臂靠近上臂；掌心向上时参与更明显。" },
+  forearm: { kind: "wrist-flexion", name: "腕屈伸控制", english: "Wrist control", cue: "前臂肌群控制手腕与手指，并在抓握时把腕关节稳定在合适位置。" },
+  abs: { kind: "trunk-flexion", name: "躯干屈曲", english: "Trunk flexion", cue: "腹直肌让胸廓向骨盆靠近，同时限制腰椎过度伸展。" },
+  obliques: { kind: "trunk-rotation", name: "躯干旋转", english: "Trunk rotation", cue: "两侧腹斜肌形成协同，让胸廓旋转并控制身体抵抗外力扭转。" },
+  adductors: { kind: "hip-adduction", name: "髋内收", english: "Hip adduction", cue: "大腿内收肌把腿拉向身体中线，并在单腿支撑时稳定骨盆。" },
+  quadriceps: { kind: "knee-extension", name: "伸膝", english: "Knee extension", cue: "股四头肌把弯曲的小腿伸直，是蹲起、跳跃和上台阶的主力。" },
+  tibialis: { kind: "ankle-dorsiflexion", name: "踝背屈", english: "Ankle dorsiflexion", cue: "胫骨前肌把脚尖拉向小腿，并在落地时控制前脚掌缓慢下降。" },
+  trapezius: { kind: "scapular-rotation", name: "肩胛上回旋", english: "Scapular upward rotation", cue: "斜方肌上、下束协同，让肩胛骨在手臂过顶时平稳转动。" },
+  "rotator-cuff": { kind: "shoulder-rotation", name: "肩外旋稳定", english: "External rotation", cue: "肩袖在旋转上臂的同时，把肱骨头稳定在肩胛盂中央。" },
+  triceps: { kind: "elbow-extension", name: "伸肘", english: "Elbow extension", cue: "肱三头肌把弯曲的手肘伸直，完成推起、投掷和支撑。" },
+  lats: { kind: "shoulder-adduction", name: "肩内收与伸展", english: "Shoulder adduction", cue: "背阔肌把高位手臂拉向身体和髋部，是引体与下拉动作的主力。" },
+  erectors: { kind: "spine-extension", name: "脊柱伸展控制", english: "Spinal extension", cue: "竖脊肌让躯干回到直立，并在髋铰链中抵抗脊柱被负重拉弯。" },
+  glutes: { kind: "hip-extension", name: "髋伸", english: "Hip extension", cue: "臀大肌把大腿向后拉并推动身体向前，是起身、跑跳和加速的关键。" },
+  hamstrings: { kind: "knee-flexion", name: "屈膝", english: "Knee flexion", cue: "腘绳肌把脚跟拉向臀部，同时协助髋伸和奔跑减速。" },
+  calves: { kind: "plantar-flexion", name: "踝跖屈", english: "Plantar flexion", cue: "小腿三头肌抬起脚跟，让身体向上和向前推进。" },
 };
 
 const MUSCLES: Muscle[] = [
@@ -875,12 +921,89 @@ function ArrowIcon() {
   return <span aria-hidden="true">↗</span>;
 }
 
+function MotionDemo({
+  muscle,
+  playing,
+  slow,
+  onTogglePlaying,
+  onToggleSlow,
+}: {
+  muscle: Muscle;
+  playing: boolean;
+  slow: boolean;
+  onTogglePlaying: () => void;
+  onToggleSlow: () => void;
+}) {
+  const motion = MOTION_BY_MUSCLE[muscle.id];
+
+  return (
+    <section className="motion-demo" aria-label={`${muscle.name}动态动作演示`}>
+      <div className="motion-demo-copy">
+        <div className="motion-kicker"><span /> 动态动作演示</div>
+        <h3>{motion.name}</h3>
+        <em>{motion.english}</em>
+        <p>{motion.cue}</p>
+        <div className="motion-controls" role="group" aria-label="动作演示控制">
+          <button type="button" className="primary" onClick={onTogglePlaying} aria-pressed={playing}>
+            <span aria-hidden="true">{playing ? "Ⅱ" : "▶"}</span>{playing ? "暂停" : "播放"}
+          </button>
+          <button type="button" onClick={onToggleSlow} aria-pressed={slow}>{slow ? "1× 常速" : "0.5× 慢速"}</button>
+        </div>
+      </div>
+
+      <div className="motion-canvas" role="img" aria-label={`${muscle.name}完成${motion.name}的循环动作模型`}>
+        <div
+          key={muscle.id}
+          className={`kinetic-figure motion-${motion.kind} ${playing ? "is-playing" : "is-paused"} ${slow ? "is-slow" : ""}`}
+          data-muscle={muscle.id}
+        >
+          <span className="figure-axis" aria-hidden="true" />
+          <span className="figure-shadow" aria-hidden="true" />
+          <div className="figure-upper" aria-hidden="true">
+            <span className="figure-head" />
+            <span className="figure-neck" />
+            <span className="figure-torso">
+              <i className="figure-zone zone-chest" />
+              <i className="figure-zone zone-core" />
+              <i className="figure-zone zone-back" />
+            </span>
+            <i className="figure-shoulder shoulder-left" />
+            <i className="figure-shoulder shoulder-right" />
+            <span className="figure-arm arm-left">
+              <i className="figure-zone zone-upper-arm" />
+              <span className="figure-forearm"><i className="figure-zone zone-forearm" /><span className="figure-hand" /></span>
+            </span>
+            <span className="figure-arm arm-right">
+              <i className="figure-zone zone-upper-arm" />
+              <span className="figure-forearm"><i className="figure-zone zone-forearm" /><span className="figure-hand" /></span>
+            </span>
+          </div>
+          <span className="figure-pelvis"><i className="figure-zone zone-glutes" /></span>
+          <span className="figure-leg leg-left">
+            <i className="figure-zone zone-thigh" />
+            <span className="figure-shin"><i className="figure-zone zone-shin" /><span className="figure-foot" /></span>
+          </span>
+          <span className="figure-leg leg-right">
+            <i className="figure-zone zone-thigh" />
+            <span className="figure-shin"><i className="figure-zone zone-shin" /><span className="figure-foot" /></span>
+          </span>
+        </div>
+        <span className="motion-phase">收缩 <i /> 还原</span>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   const [bodyView, setBodyView] = useState<BodyView>("front");
   const [activeId, setActiveId] = useState("chest");
   const [activePartId, setActivePartId] = useState(PARTS_BY_MUSCLE.chest?.[0]?.id ?? "");
   const [query, setQuery] = useState("");
   const [imageReady, setImageReady] = useState<Record<BodyView, boolean>>({ front: false, back: false });
+  const [modelPlaying, setModelPlaying] = useState(true);
+  const [modelTilt, setModelTilt] = useState({ x: 0, y: 0 });
+  const [motionPlaying, setMotionPlaying] = useState(true);
+  const [motionSlow, setMotionSlow] = useState(false);
 
   const activeMuscle = MUSCLES.find((muscle) => muscle.id === activeId) ?? MUSCLES[0];
   const activeParts = PARTS_BY_MUSCLE[activeMuscle.id] ?? [];
@@ -908,6 +1031,11 @@ export default function Home() {
     setActivePartId(PARTS_BY_MUSCLE[nextMuscleId]?.[0]?.id ?? "");
     setQuery("");
   };
+
+  const modelStyle = {
+    "--model-tilt-x": `${modelTilt.y * -4}deg`,
+    "--model-tilt-y": `${modelTilt.x * 5}deg`,
+  } as CSSProperties;
 
   return (
     <main className="site-shell">
@@ -941,9 +1069,14 @@ export default function Home() {
       <section className="explorer" id="explorer">
         <div className="anatomy-card">
           <div className="card-toolbar">
-            <div className="view-switch" role="group" aria-label="选择人体视角">
-              <button className={bodyView === "front" ? "active" : ""} onClick={() => changeView("front")} aria-pressed={bodyView === "front"}>正面</button>
-              <button className={bodyView === "back" ? "active" : ""} onClick={() => changeView("back")} aria-pressed={bodyView === "back"}>背面</button>
+            <div className="model-toolbar-actions">
+              <div className="view-switch" role="group" aria-label="选择人体视角">
+                <button className={bodyView === "front" ? "active" : ""} onClick={() => changeView("front")} aria-pressed={bodyView === "front"}>正面</button>
+                <button className={bodyView === "back" ? "active" : ""} onClick={() => changeView("back")} aria-pressed={bodyView === "back"}>背面</button>
+              </div>
+              <button className="model-play-toggle" type="button" onClick={() => setModelPlaying((value) => !value)} aria-pressed={modelPlaying}>
+                <span aria-hidden="true">{modelPlaying ? "Ⅱ" : "▶"}</span>{modelPlaying ? "暂停模型" : "播放模型"}
+              </button>
             </div>
             <label className="search-box">
               <span aria-hidden="true">⌕</span>
@@ -952,26 +1085,41 @@ export default function Home() {
             </label>
           </div>
 
-          <div className="anatomy-stage">
-            <div className="stage-note"><span className="pulse-dot" /> 点击发光标记查看肌群</div>
+          <div
+            className="anatomy-stage"
+            onPointerMove={(event) => {
+              if (event.pointerType === "touch") return;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              setModelTilt({
+                x: (event.clientX - bounds.left) / bounds.width - 0.5,
+                y: (event.clientY - bounds.top) / bounds.height - 0.5,
+              });
+            }}
+            onPointerLeave={() => setModelTilt({ x: 0, y: 0 })}
+          >
+            <div className="stage-note"><span className="pulse-dot" /> 动态模型 · 移动鼠标观察层次</div>
+            <div className="stage-live"><i /> LIVE MOTION</div>
             {!imageReady[bodyView] && <div className="image-skeleton"><Skeleton height="100%" borderRadius={28} baseColor="#eeeae2" highlightColor="#faf8f3" /></div>}
-            <div className={`anatomy-image-wrap ${imageReady[bodyView] ? "ready" : ""}`}>
-              <img
-                src={bodyView === "front" ? "./anterior-muscles.jpg" : "./posterior-muscles.jpg"}
-                alt={bodyView === "front" ? "人体主要肌肉正面解剖图" : "人体主要肌肉背面解剖图"}
-                onLoad={() => setImageReady((state) => ({ ...state, [bodyView]: true }))}
-              />
-              {visibleMuscles.map((muscle) => (
-                <button
-                  key={muscle.id}
-                  className={`hotspot ${activeId === muscle.id ? "active" : ""}`}
-                  style={{ left: `${muscle.position.x}%`, top: `${muscle.position.y}%` }}
-                  onClick={() => selectMuscle(muscle)}
-                  aria-label={`查看${muscle.name}`}
-                  aria-pressed={activeId === muscle.id}
-                  data-label={muscle.name}
-                ><span /></button>
-              ))}
+            <div className="anatomy-model-shell" style={modelStyle}>
+              <div key={bodyView} className={`anatomy-image-wrap ${imageReady[bodyView] ? "ready" : ""} ${modelPlaying ? "is-moving" : "is-paused"}`}>
+                <span className="model-aura" aria-hidden="true" />
+                <img
+                  src={bodyView === "front" ? "./anterior-muscles.jpg" : "./posterior-muscles.jpg"}
+                  alt={bodyView === "front" ? "人体主要肌肉正面解剖图" : "人体主要肌肉背面解剖图"}
+                  onLoad={() => setImageReady((state) => ({ ...state, [bodyView]: true }))}
+                />
+                {visibleMuscles.map((muscle) => (
+                  <button
+                    key={muscle.id}
+                    className={`hotspot ${activeId === muscle.id ? "active" : ""}`}
+                    style={{ left: `${muscle.position.x}%`, top: `${muscle.position.y}%` }}
+                    onClick={() => selectMuscle(muscle)}
+                    aria-label={`查看${muscle.name}`}
+                    aria-pressed={activeId === muscle.id}
+                    data-label={muscle.name}
+                  ><span /></button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1005,6 +1153,14 @@ export default function Home() {
             <p>{activeMuscle.english}</p>
           </div>
           <p className="muscle-summary">{activeMuscle.summary}</p>
+
+          <MotionDemo
+            muscle={activeMuscle}
+            playing={motionPlaying}
+            slow={motionSlow}
+            onTogglePlaying={() => setMotionPlaying((value) => !value)}
+            onToggleSlow={() => setMotionSlow((value) => !value)}
+          />
 
           <section className="part-explorer" aria-label={`${activeMuscle.name}精细结构`}>
             <div className="part-explorer-head">
