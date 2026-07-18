@@ -1067,7 +1067,7 @@ export default function Home() {
                 <button className={bodyView === "back" ? "active" : ""} onClick={() => changeView("back")} aria-pressed={bodyView === "back"}>背面</button>
               </div>
               <button className="model-play-toggle" type="button" onClick={() => setModelPlaying((value) => !value)} aria-pressed={modelPlaying}>
-                <span aria-hidden="true">{modelPlaying ? "Ⅱ" : "▶"}</span>{modelPlaying ? "暂停模型" : "播放模型"}
+                <span aria-hidden="true">{modelPlaying ? "Ⅱ" : "▶"}</span>{modelPlaying ? "暂停旋转" : "自动旋转"}
               </button>
             </div>
             <label className="search-box">
