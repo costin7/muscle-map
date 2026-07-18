@@ -21,7 +21,8 @@ test("server-renders the medical 3D muscle map", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>肌图 Muscle Map｜人体肌群互动学习<\/title>/i);
-  assert.match(html, /REAL ANATOMY · 3D/);
+  assert.match(html, /MUSCULATURE ·/);
+  assert.match(html, /肌群目录/);
   assert.match(html, /可旋转的写实人体肌肉 3D 模型/);
   assert.match(html, /动态动作演示/);
   assert.match(html, /21<\/strong><span>大肌群/);
@@ -39,15 +40,14 @@ test("uses a licensed medical model with touch controls and a safe fallback", as
   assert.match(model, /model-viewer\/4\.3\.1/);
   assert.match(model, /camera-controls/);
   assert.match(model, /touch-action/);
-  assert.match(model, /positionAndNormalFromPoint/);
   assert.match(model, /setAlphaMode\("OPAQUE"\)/);
-  assert.match(model, /setBaseColorFactor\("#d94335"\)/);
-  assert.match(model, /INTERACTION_REGIONS/);
-  assert.match(model, /data-visibility-attribute/);
-  assert.match(model, /anatomy-hotspot-3d/);
+  assert.match(model, /setBaseColorFactor\("#c24a3e"\)/);
+  assert.match(model, /anatomy-directory/);
+  assert.match(model, /选择后精准定位/);
+  assert.match(model, /从肌群目录精准定位/);
+  assert.doesNotMatch(model, /positionAndNormalFromPoint|INTERACTION_REGIONS|HOTSPOT_ANCHORS|anatomy-hotspot-3d|data-visibility-attribute/);
   assert.match(model, /camera-target/);
-  assert.match(model, /点按肌肉/);
-  assert.match(model, /返回全身/);
+  assert.match(model, /全身/);
   assert.match(model, /BodyParts3D \/ Optima/);
   assert.match(model, /anterior-muscles\.jpg/);
   assert.match(page, /菱形肌/);
@@ -55,6 +55,7 @@ test("uses a licensed medical model with touch controls and a safe fallback", as
   assert.match(page, /前锯肌/);
   assert.match(page, /大圆肌/);
   assert.match(page, /<Anatomy3D/);
+  assert.doesNotMatch(page, /interactive-muscle-dot/);
   assert.match(vercelConfig, /models\/muscular\.glb/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
