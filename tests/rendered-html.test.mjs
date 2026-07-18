@@ -35,9 +35,13 @@ test("uses a licensed medical model with touch controls and a safe fallback", as
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
   ]);
 
-  assert.match(model, /@google\/model-viewer@4\.2\.0/);
+  assert.match(model, /model-viewer\/4\.3\.1/);
   assert.match(model, /camera-controls/);
   assert.match(model, /touch-action/);
+  assert.match(model, /positionAndNormalFromPoint/);
+  assert.match(model, /camera-target/);
+  assert.match(model, /点按肌肉/);
+  assert.match(model, /返回全身/);
   assert.match(model, /BodyParts3D \/ Optima/);
   assert.match(model, /anterior-muscles\.jpg/);
   assert.match(page, /<Anatomy3D/);
