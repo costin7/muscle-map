@@ -25,12 +25,22 @@ type ModelViewerElement = HTMLElement & {
   getBoundingBoxCenter?: () => Vector3D;
   getCameraOrbit?: () => CameraOrbit;
   positionAndNormalFromPoint?: (clientX: number, clientY: number) => ModelHit | null;
+  model?: { materials: readonly ModelMaterial[] };
 };
 
 type Vector3D = { x: number; y: number; z: number; toString: () => string };
 type CameraOrbit = { theta: number; phi: number; radius: number; toString: () => string };
 type ModelHit = { position: Vector3D; normal: Vector3D };
 type FocusMarker = { x: number; y: number; name: string };
+type ModelMaterial = {
+  setAlphaMode: (mode: "OPAQUE" | "MASK" | "BLEND") => void;
+  pbrMetallicRoughness: {
+    readonly baseColorFactor: Readonly<[number, number, number, number]>;
+    setBaseColorFactor: (rgba: [number, number, number, number]) => void;
+    setMetallicFactor: (value: number) => void;
+    setRoughnessFactor: (value: number) => void;
+  };
+};
 
 type ProgressEvent = Event & {
   detail?: { totalProgress?: number };
@@ -44,6 +54,16 @@ const FOCUS_PROFILES: Record<string, { y: number; zoom: number }> = {
   trapezius: { y: 0.73, zoom: 44 }, "rotator-cuff": { y: 0.72, zoom: 43 }, triceps: { y: 0.62, zoom: 43 }, lats: { y: 0.59, zoom: 44 },
   erectors: { y: 0.5, zoom: 44 }, glutes: { y: 0.39, zoom: 44 }, hamstrings: { y: 0.25, zoom: 43 }, calves: { y: 0.1, zoom: 42 },
 };
+
+function solidifyMuscleMaterials(viewer: ModelViewerElement) {
+  viewer.model?.materials.forEach((material) => {
+    const [red, green, blue] = material.pbrMetallicRoughness.baseColorFactor;
+    material.setAlphaMode("OPAQUE");
+    material.pbrMetallicRoughness.setBaseColorFactor([red, green, blue, 1]);
+    material.pbrMetallicRoughness.setMetallicFactor(0);
+    material.pbrMetallicRoughness.setRoughnessFactor(0.76);
+  });
+}
 
 function muscleAtPoint(muscles: MuscleOption[], pointView: BodyView, point: Vector3D, center: Vector3D, dimensions: Vector3D) {
   const height = Math.max(0, Math.min(1, (point.y - (center.y - dimensions.y / 2)) / dimensions.y));
@@ -129,6 +149,7 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
       setProgress(Math.round(total * 100));
     };
     const handleLoad = () => {
+      solidifyMuscleMaterials(viewer);
       setModelReady(true);
       setFailed(false);
       setProgress(100);
@@ -258,9 +279,9 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
     "touch-action": "pan-y",
     "interaction-prompt": "none",
     "rotation-per-second": "7deg",
-    "shadow-intensity": "0.72",
-    "shadow-softness": "0.92",
-    exposure: "1.08",
+    "shadow-intensity": "0.94",
+    "shadow-softness": "0.86",
+    exposure: "0.92",
     "environment-image": "neutral",
     "camera-orbit": `${azimuth}deg 78deg ${zoom}%`,
     "min-camera-orbit": "auto 58deg 34%",
