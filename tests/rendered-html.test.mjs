@@ -14,31 +14,33 @@ async function render() {
   );
 }
 
-test("server-renders the interactive 3D muscle map", async () => {
+test("server-renders the medical 3D muscle map", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<title>肌图 Muscle Map｜人体肌群互动学习<\/title>/i);
-  assert.match(html, /WEBGL 3D/);
-  assert.match(html, /可拖动旋转的 3D 人体肌肉模型/);
+  assert.match(html, /REAL ANATOMY · 3D/);
+  assert.match(html, /可旋转的写实人体肌肉 3D 模型/);
   assert.match(html, /动态动作演示/);
   assert.match(html, /51<\/strong><span>精细结构/);
 });
 
-test("keeps the 3D model self-contained and touch accessible", async () => {
-  const [model, page, packageJson] = await Promise.all([
+test("uses a licensed medical model with touch controls and a safe fallback", async () => {
+  const [model, page, packageJson, vercelConfig] = await Promise.all([
     readFile(new URL("../app/Anatomy3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../vercel.json", import.meta.url), "utf8"),
   ]);
 
-  assert.match(model, /getContext\("webgl"/);
-  assert.match(model, /pointerdown/);
-  assert.match(model, /wheel/);
-  assert.match(model, /aria-label=\{`可拖动旋转的 3D/);
+  assert.match(model, /@google\/model-viewer@4\.2\.0/);
+  assert.match(model, /camera-controls/);
+  assert.match(model, /touch-action/);
+  assert.match(model, /BodyParts3D \/ Optima/);
+  assert.match(model, /anterior-muscles\.jpg/);
   assert.match(page, /<Anatomy3D/);
-  assert.doesNotMatch(page, /anterior-muscles\.jpg|posterior-muscles\.jpg/);
+  assert.match(vercelConfig, /models\/muscular\.glb/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
