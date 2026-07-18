@@ -29,9 +29,10 @@ test("server-renders the medical 3D muscle map", async () => {
   assert.match(html, /56<\/strong><span>精细结构/);
 });
 
-test("uses a licensed medical model with touch controls and a safe fallback", async () => {
-  const [model, page, packageJson, vercelConfig] = await Promise.all([
+test("uses a licensed medical model with corrected views, focus effects, and a safe fallback", async () => {
+  const [model, styles, page, packageJson, vercelConfig] = await Promise.all([
     readFile(new URL("../app/Anatomy3D.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
@@ -41,10 +42,14 @@ test("uses a licensed medical model with touch controls and a safe fallback", as
   assert.match(model, /camera-controls/);
   assert.match(model, /touch-action/);
   assert.match(model, /setAlphaMode\("OPAQUE"\)/);
-  assert.match(model, /setBaseColorFactor\("#c24a3e"\)/);
+  assert.doesNotMatch(model, /setBaseColorFactor/);
+  assert.match(model, /VIEW_AZIMUTH[^;]+front: 180, back: 0/);
+  assert.match(model, /deltoid:[^\n]+angle: 105[^\n]+perspective: "LATERAL"/);
   assert.match(model, /anatomy-directory/);
-  assert.match(model, /选择后精准定位/);
-  assert.match(model, /从肌群目录精准定位/);
+  assert.match(model, /自动切换解剖视角/);
+  assert.match(model, /选择肌群后自动定位与高亮/);
+  assert.match(model, /anatomy-selection-effect/);
+  assert.match(styles, /anatomy-selection-effect/);
   assert.doesNotMatch(model, /positionAndNormalFromPoint|INTERACTION_REGIONS|HOTSPOT_ANCHORS|anatomy-hotspot-3d|data-visibility-attribute/);
   assert.match(model, /camera-target/);
   assert.match(model, /全身/);
