@@ -957,7 +957,7 @@ export default function Home() {
             {!imageReady[bodyView] && <div className="image-skeleton"><Skeleton height="100%" borderRadius={28} baseColor="#eeeae2" highlightColor="#faf8f3" /></div>}
             <div className={`anatomy-image-wrap ${imageReady[bodyView] ? "ready" : ""}`}>
               <img
-                src={bodyView === "front" ? "/anterior-muscles.jpg" : "/posterior-muscles.jpg"}
+                src={bodyView === "front" ? "./anterior-muscles.jpg" : "./posterior-muscles.jpg"}
                 alt={bodyView === "front" ? "人体主要肌肉正面解剖图" : "人体主要肌肉背面解剖图"}
                 onLoad={() => setImageReady((state) => ({ ...state, [bodyView]: true }))}
               />
