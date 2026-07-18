@@ -23,13 +23,13 @@ test("server-renders the medical 3D muscle map", async () => {
   assert.match(html, /<title>肌图 Muscle Map｜人体肌群互动学习<\/title>/i);
   assert.match(html, /MUSCULATURE ·/);
   assert.match(html, /肌群目录/);
-  assert.match(html, /可旋转的写实人体肌肉 3D 模型/);
+  assert.match(html, /可点击并精准识别肌肉网格的轻量人体解剖 3D 模型/);
   assert.match(html, /动态动作演示/);
   assert.match(html, /21<\/strong><span>大肌群/);
   assert.match(html, /56<\/strong><span>精细结构/);
 });
 
-test("uses a licensed medical model with corrected views, focus effects, and a safe fallback", async () => {
+test("uses a segmented medical model with true mesh picking and a safe fallback", async () => {
   const [model, styles, page, packageJson, vercelConfig] = await Promise.all([
     readFile(new URL("../app/Anatomy3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -38,21 +38,17 @@ test("uses a licensed medical model with corrected views, focus effects, and a s
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
   ]);
 
-  assert.match(model, /model-viewer\/4\.3\.1/);
-  assert.match(model, /camera-controls/);
-  assert.match(model, /touch-action/);
-  assert.match(model, /setAlphaMode\("OPAQUE"\)/);
-  assert.doesNotMatch(model, /setBaseColorFactor/);
-  assert.match(model, /VIEW_AZIMUTH[^;]+front: 180, back: 0/);
-  assert.match(model, /deltoid:[^\n]+angle: 105[^\n]+perspective: "LATERAL"/);
+  assert.match(model, /cdn\.babylonjs\.com\/babylon\.js/);
+  assert.match(model, /babylonjs\.loaders\.min\.js/);
+  assert.match(model, /SceneLoader\.ImportMeshAsync/);
+  assert.match(model, /scene\.pick/);
+  assert.match(model, /pickedMesh/);
+  assert.match(model, /HighlightLayer/);
   assert.match(model, /anatomy-directory/);
-  assert.match(model, /自动切换解剖视角/);
-  assert.match(model, /选择肌群后自动定位与高亮/);
-  assert.match(model, /anatomy-selection-effect/);
-  assert.match(styles, /anatomy-selection-effect/);
-  assert.doesNotMatch(model, /positionAndNormalFromPoint|INTERACTION_REGIONS|HOTSPOT_ANCHORS|anatomy-hotspot-3d|data-visibility-attribute/);
-  assert.match(model, /camera-target/);
-  assert.match(model, /全身/);
+  assert.match(model, /真实网格高亮/);
+  assert.match(model, /点击真实网格直接识别并高亮/);
+  assert.doesNotMatch(model, /FOCUS_PROFILES|camera-target|anatomy-selection-effect|INTERACTION_REGIONS|HOTSPOT_ANCHORS/);
+  assert.doesNotMatch(styles, /anatomy-selection-effect/);
   assert.match(model, /BodyParts3D \/ Optima/);
   assert.match(model, /anterior-muscles\.jpg/);
   assert.match(page, /菱形肌/);

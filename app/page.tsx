@@ -1131,7 +1131,6 @@ export default function Home() {
   const [activeId, setActiveId] = useState("chest");
   const [activePartId, setActivePartId] = useState(PARTS_BY_MUSCLE.chest?.[0]?.id ?? "");
   const [query, setQuery] = useState("");
-  const [modelPlaying, setModelPlaying] = useState(true);
   const [motionPlaying, setMotionPlaying] = useState(true);
   const [motionSlow, setMotionSlow] = useState(false);
 
@@ -1199,9 +1198,6 @@ export default function Home() {
                 <button className={bodyView === "front" ? "active" : ""} onClick={() => changeView("front")} aria-pressed={bodyView === "front"}>正面</button>
                 <button className={bodyView === "back" ? "active" : ""} onClick={() => changeView("back")} aria-pressed={bodyView === "back"}>背面</button>
               </div>
-              <button className="model-play-toggle" type="button" onClick={() => setModelPlaying((value) => !value)} aria-pressed={modelPlaying}>
-                <span aria-hidden="true">{modelPlaying ? "Ⅱ" : "▶"}</span>{modelPlaying ? "暂停旋转" : "自动旋转"}
-              </button>
             </div>
             <label className="search-box">
               <span aria-hidden="true">⌕</span>
@@ -1215,7 +1211,6 @@ export default function Home() {
               view={bodyView}
               activeId={activeId}
               muscles={MUSCLES}
-              playing={modelPlaying}
               onSelect={(muscleId) => {
                 const muscle = MUSCLES.find((item) => item.id === muscleId);
                 if (muscle) selectMuscle(muscle);
