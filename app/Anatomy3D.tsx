@@ -31,10 +31,18 @@ type ModelViewerElement = HTMLElement & {
 type ModelMaterial = {
   setAlphaMode: (mode: "OPAQUE" | "MASK" | "BLEND") => void;
   pbrMetallicRoughness: {
-    setBaseColorFactor: (rgba: [number, number, number, number] | string) => void;
     setMetallicFactor: (value: number) => void;
     setRoughnessFactor: (value: number) => void;
   };
+};
+
+type FocusProfile = {
+  y: number;
+  x?: number;
+  zoom: number;
+  angle: number;
+  effect: "shoulder" | "upper" | "torso" | "arm" | "hip" | "thigh" | "lower";
+  perspective: "ANTERIOR" | "POSTERIOR" | "LATERAL" | "ANTEROLATERAL" | "POSTEROLATERAL";
 };
 
 type ProgressEvent = Event & {
@@ -43,19 +51,37 @@ type ProgressEvent = Event & {
 
 const MODEL_VIEWER_SCRIPT = "https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js";
 
-const FOCUS_PROFILES: Record<string, { y: number; zoom: number }> = {
-  deltoid: { y: 0.77, zoom: 46 }, chest: { y: 0.68, zoom: 43 }, biceps: { y: 0.62, zoom: 43 }, forearm: { y: 0.49, zoom: 42 },
-  "serratus-anterior": { y: 0.6, zoom: 42 }, abs: { y: 0.52, zoom: 43 }, obliques: { y: 0.51, zoom: 43 }, adductors: { y: 0.36, zoom: 45 }, quadriceps: { y: 0.27, zoom: 43 }, tibialis: { y: 0.1, zoom: 42 },
-  trapezius: { y: 0.73, zoom: 44 }, "rotator-cuff": { y: 0.72, zoom: 43 }, infraspinatus: { y: 0.68, zoom: 40 }, rhomboids: { y: 0.63, zoom: 40 }, "teres-major": { y: 0.61, zoom: 41 }, triceps: { y: 0.62, zoom: 43 }, lats: { y: 0.56, zoom: 44 },
-  erectors: { y: 0.5, zoom: 44 }, glutes: { y: 0.39, zoom: 44 }, hamstrings: { y: 0.25, zoom: 43 }, calves: { y: 0.1, zoom: 42 },
+const VIEW_AZIMUTH: Record<BodyView, number> = { front: 180, back: 0 };
+
+const FOCUS_PROFILES: Record<string, FocusProfile> = {
+  deltoid: { y: 0.77, x: 0.27, zoom: 40, angle: 105, effect: "shoulder", perspective: "LATERAL" },
+  chest: { y: 0.68, zoom: 43, angle: 180, effect: "upper", perspective: "ANTERIOR" },
+  biceps: { y: 0.62, x: 0.31, zoom: 41, angle: 145, effect: "arm", perspective: "ANTEROLATERAL" },
+  forearm: { y: 0.49, x: 0.36, zoom: 40, angle: 145, effect: "arm", perspective: "ANTEROLATERAL" },
+  "serratus-anterior": { y: 0.6, x: 0.2, zoom: 40, angle: 138, effect: "torso", perspective: "ANTEROLATERAL" },
+  abs: { y: 0.52, zoom: 42, angle: 180, effect: "torso", perspective: "ANTERIOR" },
+  obliques: { y: 0.51, x: 0.17, zoom: 41, angle: 142, effect: "torso", perspective: "ANTEROLATERAL" },
+  adductors: { y: 0.36, x: 0.1, zoom: 43, angle: 170, effect: "thigh", perspective: "ANTERIOR" },
+  quadriceps: { y: 0.27, x: 0.15, zoom: 41, angle: 165, effect: "thigh", perspective: "ANTERIOR" },
+  tibialis: { y: 0.1, x: 0.16, zoom: 40, angle: 165, effect: "lower", perspective: "ANTERIOR" },
+  trapezius: { y: 0.73, zoom: 43, angle: 0, effect: "upper", perspective: "POSTERIOR" },
+  "rotator-cuff": { y: 0.72, x: 0.2, zoom: 40, angle: 38, effect: "shoulder", perspective: "POSTEROLATERAL" },
+  infraspinatus: { y: 0.68, x: 0.15, zoom: 38, angle: 28, effect: "upper", perspective: "POSTEROLATERAL" },
+  rhomboids: { y: 0.63, zoom: 39, angle: 0, effect: "upper", perspective: "POSTERIOR" },
+  "teres-major": { y: 0.61, x: 0.21, zoom: 39, angle: 35, effect: "upper", perspective: "POSTEROLATERAL" },
+  triceps: { y: 0.62, x: 0.31, zoom: 41, angle: 32, effect: "arm", perspective: "POSTEROLATERAL" },
+  lats: { y: 0.56, x: 0.12, zoom: 42, angle: 18, effect: "torso", perspective: "POSTERIOR" },
+  erectors: { y: 0.5, zoom: 42, angle: 0, effect: "torso", perspective: "POSTERIOR" },
+  glutes: { y: 0.39, x: 0.12, zoom: 42, angle: 12, effect: "hip", perspective: "POSTERIOR" },
+  hamstrings: { y: 0.25, x: 0.14, zoom: 41, angle: 12, effect: "thigh", perspective: "POSTERIOR" },
+  calves: { y: 0.1, x: 0.15, zoom: 40, angle: 12, effect: "lower", perspective: "POSTERIOR" },
 };
 
-function solidifyMuscleMaterials(viewer: ModelViewerElement) {
+function restoreAnatomicalMaterials(viewer: ModelViewerElement) {
   viewer.model?.materials.forEach((material) => {
     material.setAlphaMode("OPAQUE");
-    material.pbrMetallicRoughness.setBaseColorFactor("#c24a3e");
     material.pbrMetallicRoughness.setMetallicFactor(0);
-    material.pbrMetallicRoughness.setRoughnessFactor(0.8);
+    material.pbrMetallicRoughness.setRoughnessFactor(0.66);
   });
 }
 
@@ -94,11 +120,14 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
   const [failed, setFailed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [zoom, setZoom] = useState(105);
+  const [cameraAngle, setCameraAngle] = useState(VIEW_AZIMUTH[view]);
+  const [cameraPerspective, setCameraPerspective] = useState<FocusProfile["perspective"]>(view === "front" ? "ANTERIOR" : "POSTERIOR");
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const previousActiveIdRef = useRef(activeId);
   const activeMuscle = muscles.find((muscle) => muscle.id === activeId) ?? muscles[0];
   const viewMuscles = muscles.filter((muscle) => muscle.view === view);
-  const azimuth = view === "front" ? 0 : 180;
+  const activeProfile = FOCUS_PROFILES[activeId];
+  const displayPerspective = focusedId ? cameraPerspective : view === "front" ? "ANTERIOR" : "POSTERIOR";
   const captureViewer = useCallback((node: ModelViewerElement | null) => setViewerElement(node), []);
 
   useEffect(() => installModelViewer(() => setViewerReady(true), () => setFailed(true)), []);
@@ -112,7 +141,7 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
       setProgress(Math.round(total * 100));
     };
     const handleLoad = () => {
-      solidifyMuscleMaterials(viewer);
+      restoreAnatomicalMaterials(viewer);
       setModelReady(true);
       setFailed(false);
       setProgress(100);
@@ -139,10 +168,12 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
     const center = viewer.getBoundingBoxCenter?.();
     if (!dimensions || !center) return;
 
+    const targetX = center.x + (dimensions.x / 2) * (profile.x ?? 0);
     const targetY = center.y - dimensions.y / 2 + dimensions.y * profile.y;
-    viewer.setAttribute("camera-target", `${center.x}m ${targetY}m ${center.z}m`);
-    viewer.setAttribute("camera-orbit", `${muscle.view === "front" ? 0 : 180}deg 78deg ${profile.zoom}%`);
+    viewer.setAttribute("camera-target", `${targetX}m ${targetY}m ${center.z}m`);
     viewer.setAttribute("field-of-view", "28deg");
+    setCameraAngle(profile.angle);
+    setCameraPerspective(profile.perspective);
     setZoom(profile.zoom);
     setFocusedId(muscleId);
   }, [modelReady, muscles, viewerElement]);
@@ -150,8 +181,8 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
   useEffect(() => {
     const viewer = viewerElement;
     if (!viewer) return;
-    viewer.setAttribute("camera-orbit", `${azimuth}deg 78deg ${zoom}%`);
-  }, [azimuth, viewerElement, viewerReady, zoom]);
+    viewer.setAttribute("camera-orbit", `${cameraAngle}deg 78deg ${zoom}%`);
+  }, [cameraAngle, viewerElement, viewerReady, zoom]);
 
   useEffect(() => {
     if (!modelReady || previousActiveIdRef.current === activeId) return;
@@ -168,13 +199,16 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
 
   const resetView = () => {
     const nextZoom = 105;
+    const nextAngle = VIEW_AZIMUTH[view];
     setZoom(nextZoom);
+    setCameraAngle(nextAngle);
+    setCameraPerspective(view === "front" ? "ANTERIOR" : "POSTERIOR");
     setFocusedId(null);
     const viewer = viewerElement;
     if (!viewer) return;
     viewer.resetTurntableRotation?.();
     viewer.setAttribute("camera-target", "auto auto auto");
-    viewer.setAttribute("camera-orbit", `${azimuth}deg 78deg ${nextZoom}%`);
+    viewer.setAttribute("camera-orbit", `${nextAngle}deg 78deg ${nextZoom}%`);
     viewer.setAttribute("field-of-view", "26deg");
   };
 
@@ -194,9 +228,10 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
     "rotation-per-second": "7deg",
     "shadow-intensity": "0.72",
     "shadow-softness": "0.92",
-    exposure: "0.96",
+    exposure: "1.04",
     "environment-image": "neutral",
-    "camera-orbit": `${azimuth}deg 78deg ${zoom}%`,
+    "tone-mapping": "commerce",
+    "camera-orbit": `${cameraAngle}deg 78deg ${zoom}%`,
     "min-camera-orbit": "auto 58deg 34%",
     "max-camera-orbit": "auto 100deg 150%",
     "field-of-view": "26deg",
@@ -208,6 +243,12 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
   return (
     <div className="anatomy-3d" data-ready={modelReady ? "true" : "false"} data-focused={focusedId ? "true" : "false"}>
       {!failed && model}
+
+      {modelReady && focusedId && activeProfile && (
+        <div className={`anatomy-selection-effect anatomy-selection-${activeProfile.effect}`} aria-hidden="true">
+          <i /><i /><span />
+        </div>
+      )}
 
       {!modelReady && !failed && (
         <div className="anatomy-loading" role="status" aria-live="polite">
@@ -228,13 +269,13 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
       )}
 
       <div className="anatomy-3d-heading" aria-live="polite">
-        <span>MUSCULATURE · {view === "front" ? "ANTERIOR" : "POSTERIOR"}</span>
+        <span>MUSCULATURE · {displayPerspective}</span>
         <strong>{activeMuscle.name}</strong>
-        {activeMuscle.english && <small>{activeMuscle.english}</small>}
+        {activeMuscle.english && <small>{activeMuscle.english} · {displayPerspective === "LATERAL" ? "侧面视角" : displayPerspective.includes("LATERAL") ? "斜侧视角" : view === "front" ? "正面视角" : "背面视角"}</small>}
       </div>
 
       <nav className="anatomy-directory" aria-label={`${view === "front" ? "正面" : "背面"}可选择肌群`}>
-        <div><span>肌群目录</span><small>选择后精准定位</small></div>
+        <div><span>肌群目录</span><small>自动切换解剖视角</small></div>
         <ol>
           {viewMuscles.map((muscle, index) => (
             <li key={muscle.id}>
@@ -247,7 +288,7 @@ export default function Anatomy3D({ view, activeId, muscles, playing, onSelect }
         </ol>
       </nav>
 
-      <p className="anatomy-3d-help"><b>从肌群目录精准定位</b><span>拖动旋转 · 双指缩放</span></p>
+      <p className="anatomy-3d-help"><b>选择肌群后自动定位与高亮</b><span>拖动旋转 · 双指缩放</span></p>
 
       <div className="anatomy-3d-controls" aria-label="3D 模型控制">
         <button type="button" onClick={() => setZoom((value) => Math.min(150, value + 10))} aria-label="缩小 3D 模型">−</button>
