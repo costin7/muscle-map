@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
+import { useMemo, useState } from "react";
+import Anatomy3D from "./Anatomy3D";
 
 type BodyView = "front" | "back";
 
@@ -999,9 +998,7 @@ export default function Home() {
   const [activeId, setActiveId] = useState("chest");
   const [activePartId, setActivePartId] = useState(PARTS_BY_MUSCLE.chest?.[0]?.id ?? "");
   const [query, setQuery] = useState("");
-  const [imageReady, setImageReady] = useState<Record<BodyView, boolean>>({ front: false, back: false });
   const [modelPlaying, setModelPlaying] = useState(true);
-  const [modelTilt, setModelTilt] = useState({ x: 0, y: 0 });
   const [motionPlaying, setMotionPlaying] = useState(true);
   const [motionSlow, setMotionSlow] = useState(false);
 
@@ -1031,11 +1028,6 @@ export default function Home() {
     setActivePartId(PARTS_BY_MUSCLE[nextMuscleId]?.[0]?.id ?? "");
     setQuery("");
   };
-
-  const modelStyle = {
-    "--model-tilt-x": `${modelTilt.y * -4}deg`,
-    "--model-tilt-y": `${modelTilt.x * 5}deg`,
-  } as CSSProperties;
 
   return (
     <main className="site-shell">
@@ -1085,42 +1077,17 @@ export default function Home() {
             </label>
           </div>
 
-          <div
-            className="anatomy-stage"
-            onPointerMove={(event) => {
-              if (event.pointerType === "touch") return;
-              const bounds = event.currentTarget.getBoundingClientRect();
-              setModelTilt({
-                x: (event.clientX - bounds.left) / bounds.width - 0.5,
-                y: (event.clientY - bounds.top) / bounds.height - 0.5,
-              });
-            }}
-            onPointerLeave={() => setModelTilt({ x: 0, y: 0 })}
-          >
-            <div className="stage-note"><span className="pulse-dot" /> 动态模型 · 移动鼠标观察层次</div>
-            <div className="stage-live"><i /> LIVE MOTION</div>
-            {!imageReady[bodyView] && <div className="image-skeleton"><Skeleton height="100%" borderRadius={28} baseColor="#eeeae2" highlightColor="#faf8f3" /></div>}
-            <div className="anatomy-model-shell" style={modelStyle}>
-              <div key={bodyView} className={`anatomy-image-wrap ${imageReady[bodyView] ? "ready" : ""} ${modelPlaying ? "is-moving" : "is-paused"}`}>
-                <span className="model-aura" aria-hidden="true" />
-                <img
-                  src={bodyView === "front" ? "./anterior-muscles.jpg" : "./posterior-muscles.jpg"}
-                  alt={bodyView === "front" ? "人体主要肌肉正面解剖图" : "人体主要肌肉背面解剖图"}
-                  onLoad={() => setImageReady((state) => ({ ...state, [bodyView]: true }))}
-                />
-                {visibleMuscles.map((muscle) => (
-                  <button
-                    key={muscle.id}
-                    className={`hotspot ${activeId === muscle.id ? "active" : ""}`}
-                    style={{ left: `${muscle.position.x}%`, top: `${muscle.position.y}%` }}
-                    onClick={() => selectMuscle(muscle)}
-                    aria-label={`查看${muscle.name}`}
-                    aria-pressed={activeId === muscle.id}
-                    data-label={muscle.name}
-                  ><span /></button>
-                ))}
-              </div>
-            </div>
+          <div className="anatomy-stage anatomy-stage-3d">
+            <Anatomy3D
+              view={bodyView}
+              activeId={activeId}
+              muscles={MUSCLES}
+              playing={modelPlaying}
+              onSelect={(muscleId) => {
+                const muscle = MUSCLES.find((item) => item.id === muscleId);
+                if (muscle) selectMuscle(muscle);
+              }}
+            />
           </div>
 
           <div className="muscle-rail" aria-label="肌群快速选择">
@@ -1135,7 +1102,6 @@ export default function Home() {
               {searchResults.length === 0 && <p className="empty-state">暂未找到，试试“长头”“中束”或英文名称。</p>}
             </div>
           </div>
-          <p className="image-credit">解剖图：CFCF / Wikimedia Commons，<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a></p>
         </div>
 
         <aside className="detail-panel" aria-live="polite">

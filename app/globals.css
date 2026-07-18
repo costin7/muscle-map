@@ -447,6 +447,50 @@ footer .disclaimer { justify-self: end; max-width: 400px; color: #989c97; font-s
   footer .disclaimer { grid-column: auto; }
 }
 
+.anatomy-stage-3d {
+  min-height: 720px;
+  padding: 0;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(30, 91, 70, .64), transparent 28%),
+    radial-gradient(circle at 50% 80%, rgba(228, 86, 63, .14), transparent 35%),
+    linear-gradient(145deg, #071812, #0c241b 58%, #06130f);
+}
+.anatomy-stage-3d::before {
+  inset: 10% 15% 8%;
+  border-color: rgba(202, 228, 214, .13);
+  box-shadow: 0 0 0 42px rgba(208, 230, 219, .025), 0 0 0 84px rgba(208, 230, 219, .018);
+}
+.anatomy-3d { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+.anatomy-3d::before,
+.anatomy-3d::after { content: ""; position: absolute; z-index: -1; left: 50%; border: 1px solid rgba(205, 229, 216, .12); border-radius: 50%; transform: translateX(-50%) rotateX(67deg); }
+.anatomy-3d::before { bottom: 4%; width: 62%; aspect-ratio: 1; }
+.anatomy-3d::after { bottom: 8%; width: 42%; aspect-ratio: 1; }
+.anatomy-3d-canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; outline-offset: -4px; }
+.anatomy-3d-canvas:active { cursor: grabbing; }
+.anatomy-3d-status { position: absolute; z-index: 3; top: 24px; left: 26px; display: flex; align-items: center; gap: 12px; color: rgba(236, 244, 239, .68); font-size: 9px; letter-spacing: .1em; pointer-events: none; }
+.anatomy-3d-status span { display: inline-flex; align-items: center; gap: 7px; }
+.anatomy-3d-status i { width: 7px; height: 7px; border-radius: 50%; background: #69d29a; box-shadow: 0 0 0 5px rgba(105, 210, 154, .1), 0 0 14px rgba(105, 210, 154, .55); }
+.anatomy-3d-status strong { padding: 7px 10px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 999px; color: #fff; background: rgba(5, 22, 16, .42); font-size: 10px; letter-spacing: .04em; backdrop-filter: blur(10px); }
+.anatomy-3d-help { position: absolute; z-index: 3; left: 26px; bottom: 23px; margin: 0; color: rgba(229, 239, 233, .56); font-size: 9px; letter-spacing: .05em; pointer-events: none; }
+.anatomy-3d-help b { color: rgba(255, 255, 255, .9); font-weight: 700; }
+.anatomy-3d-controls { position: absolute; z-index: 4; right: 22px; bottom: 18px; display: flex; gap: 4px; padding: 4px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 999px; background: rgba(5, 19, 14, .58); backdrop-filter: blur(12px); }
+.anatomy-3d-controls button { min-width: 36px; height: 34px; padding: 0 11px; border: 0; border-radius: 999px; background: transparent; color: rgba(255, 255, 255, .78); font-size: 10px; cursor: pointer; transition: .2s ease; }
+.anatomy-3d-controls button:hover,
+.anatomy-3d-controls button:focus-visible { color: #102019; background: #edf4ef; }
+
+@media (max-width: 980px) {
+  .anatomy-stage-3d { min-height: 680px; padding: 0; }
+}
+
+@media (max-width: 560px) {
+  .anatomy-stage-3d { min-height: 590px; padding: 0; }
+  .anatomy-stage-3d::before { inset: 14% 3% 9%; }
+  .anatomy-3d-status { top: 18px; left: 16px; gap: 7px; }
+  .anatomy-3d-help { left: 16px; right: 16px; bottom: 66px; text-align: center; line-height: 1.65; }
+  .anatomy-3d-controls { right: 50%; bottom: 17px; transform: translateX(50%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition-duration: .01ms !important; }
 }
