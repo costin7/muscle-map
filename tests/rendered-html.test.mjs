@@ -39,6 +39,8 @@ test("uses a licensed medical model with touch controls and a safe fallback", as
   assert.match(model, /camera-controls/);
   assert.match(model, /touch-action/);
   assert.match(model, /positionAndNormalFromPoint/);
+  assert.match(model, /setAlphaMode\("OPAQUE"\)/);
+  assert.match(model, /setBaseColorFactor\(\[red, green, blue, 1\]\)/);
   assert.match(model, /camera-target/);
   assert.match(model, /点按肌肉/);
   assert.match(model, /返回全身/);
