@@ -218,6 +218,9 @@ button { color: inherit; }
 .kinetic-figure[data-muscle="trapezius"] .zone-back,
 .kinetic-figure[data-muscle="lats"] .zone-back,
 .kinetic-figure[data-muscle="erectors"] .zone-back,
+.kinetic-figure[data-muscle="neck"] .figure-neck,
+.kinetic-figure[data-muscle="hip-flexors"] .zone-thigh,
+.kinetic-figure[data-muscle="deep-hip"] .zone-glutes,
 .kinetic-figure[data-muscle="glutes"] .zone-glutes,
 .kinetic-figure[data-muscle="adductors"] .zone-thigh,
 .kinetic-figure[data-muscle="quadriceps"] .zone-thigh,
@@ -254,12 +257,22 @@ button { color: inherit; }
 @keyframes trunk-flex { to { transform: translateY(5px) rotate(11deg) scaleY(.94); } }
 .motion-trunk-rotation.is-playing .figure-upper { animation: trunk-rotate var(--motion-duration) ease-in-out infinite alternate; }
 @keyframes trunk-rotate { to { transform: skewY(3deg) scaleX(.76); } }
+.motion-neck-rotation.is-playing .figure-head { animation: neck-turn var(--motion-duration) ease-in-out infinite alternate; }
+@keyframes neck-turn { to { transform: translateX(3px) rotate(9deg); } }
 .motion-hip-adduction .leg-left { transform: rotate(20deg); }
 .motion-hip-adduction .leg-right { transform: rotate(-20deg); }
 .motion-hip-adduction.is-playing .leg-left { animation: hip-in-left var(--motion-duration) ease-in-out infinite alternate; }
 .motion-hip-adduction.is-playing .leg-right { animation: hip-in-right var(--motion-duration) ease-in-out infinite alternate; }
 @keyframes hip-in-left { to { transform: rotate(3deg); } }
 @keyframes hip-in-right { to { transform: rotate(-3deg); } }
+.motion-hip-flexion.is-playing .leg-left { animation: hip-flex-left var(--motion-duration) ease-in-out infinite alternate; }
+.motion-hip-flexion.is-playing .leg-right { animation: hip-flex-right var(--motion-duration) ease-in-out infinite alternate; }
+@keyframes hip-flex-left { to { transform: rotate(-28deg) translateY(-3px); } }
+@keyframes hip-flex-right { to { transform: rotate(28deg) translateY(-3px); } }
+.motion-hip-rotation.is-playing .leg-left { animation: hip-rotate-left var(--motion-duration) ease-in-out infinite alternate; }
+.motion-hip-rotation.is-playing .leg-right { animation: hip-rotate-right var(--motion-duration) ease-in-out infinite alternate; }
+@keyframes hip-rotate-left { to { transform: rotate(10deg) skewX(4deg); } }
+@keyframes hip-rotate-right { to { transform: rotate(-10deg) skewX(-4deg); } }
 .motion-knee-extension .leg-right .figure-shin { transform: rotate(-72deg); }
 .motion-knee-extension.is-playing .leg-right .figure-shin { animation: knee-extend var(--motion-duration) ease-in-out infinite alternate; }
 @keyframes knee-extend { to { transform: rotate(0); } }

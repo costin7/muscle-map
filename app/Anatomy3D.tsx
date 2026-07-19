@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { findMeshMatch, readableMeshName } from "./anatomyMatches";
 
 type BodyView = "front" | "back";
 
@@ -14,8 +15,9 @@ type MuscleOption = {
 type Anatomy3DProps = {
   view: BodyView;
   activeId: string;
+  activePartId?: string;
   muscles: MuscleOption[];
-  onSelect: (id: string) => void;
+  onSelect: (id: string, partId?: string) => void;
 };
 
 type BabylonVector = { x: number; y: number; z: number };
@@ -103,57 +105,8 @@ declare global {
   }
 }
 
-type MatchRule = {
-  id: string;
-  aliases: string[];
-};
-
 const BABYLON_SCRIPT = "https://cdn.babylonjs.com/babylon.js";
 const BABYLON_LOADERS_SCRIPT = "https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js";
-
-// Specific structures are matched before broad groups. The hit itself always
-// comes from the renderer's picked mesh, never from an estimated screen region.
-const MUSCLE_MATCH_RULES: MatchRule[] = [
-  { id: "infraspinatus", aliases: ["infraspinatus", "musculus infraspinatus"] },
-  { id: "teres-major", aliases: ["teres major", "musculus teres major"] },
-  { id: "rhomboids", aliases: ["rhomboid major", "rhomboid minor", "rhomboideus", "rhomboid"] },
-  { id: "serratus-anterior", aliases: ["serratus anterior", "serratus ventralis"] },
-  { id: "tibialis", aliases: ["tibialis anterior"] },
-  { id: "rotator-cuff", aliases: ["supraspinatus", "subscapularis", "teres minor", "rotator cuff"] },
-  { id: "deltoid", aliases: ["deltoid", "deltoideus"] },
-  { id: "chest", aliases: ["pectoralis major", "pectoralis"] },
-  { id: "biceps", aliases: ["biceps brachii"] },
-  { id: "triceps", aliases: ["triceps brachii"] },
-  { id: "forearm", aliases: ["brachioradialis", "flexor carpi", "extensor carpi", "flexor digitorum", "extensor digitorum", "pronator", "supinator"] },
-  { id: "abs", aliases: ["rectus abdominis"] },
-  { id: "obliques", aliases: ["obliquus externus", "obliquus internus", "external oblique", "internal oblique"] },
-  { id: "adductors", aliases: ["adductor longus", "adductor brevis", "adductor magnus", "gracilis", "pectineus"] },
-  { id: "quadriceps", aliases: ["rectus femoris", "vastus lateralis", "vastus medialis", "vastus intermedius"] },
-  { id: "trapezius", aliases: ["trapezius"] },
-  { id: "lats", aliases: ["latissimus dorsi"] },
-  { id: "erectors", aliases: ["erector spinae", "iliocostalis", "longissimus", "spinalis"] },
-  { id: "glutes", aliases: ["gluteus maximus", "gluteus medius", "gluteus minimus", "gluteus"] },
-  { id: "hamstrings", aliases: ["biceps femoris", "semitendinosus", "semimembranosus"] },
-  { id: "calves", aliases: ["gastrocnemius", "soleus"] },
-];
-
-function normalizeAnatomyName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[_./()-]+/g, " ")
-    .replace(/\b(musculus|muscle|left|right|sinister|dexter|sin|dex)\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function findMuscleId(meshName: string, validIds: Set<string>) {
-  const normalizedName = normalizeAnatomyName(meshName);
-  return MUSCLE_MATCH_RULES.find((rule) =>
-    validIds.has(rule.id) && rule.aliases.some((alias) => normalizedName.includes(normalizeAnatomyName(alias))),
-  )?.id;
-}
 
 function loadScript(id: string, src: string) {
   return new Promise<void>((resolve, reject) => {
@@ -214,7 +167,7 @@ function meshBounds(meshes: BabylonMesh[]) {
   };
 }
 
-export default function Anatomy3D({ view, activeId, muscles, onSelect }: Anatomy3DProps) {
+export default function Anatomy3D({ view, activeId, activePartId, muscles, onSelect }: Anatomy3DProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<BabylonScene | null>(null);
   const highlightRef = useRef<BabylonHighlightLayer | null>(null);
@@ -223,6 +176,7 @@ export default function Anatomy3D({ view, activeId, muscles, onSelect }: Anatomy
   const validIdsRef = useRef(new Set(muscles.map((muscle) => muscle.id)));
   const onSelectRef = useRef(onSelect);
   const activeIdRef = useRef(activeId);
+  const activePartIdRef = useRef(activePartId);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const [rendererReady, setRendererReady] = useState(false);
   const [modelReady, setModelReady] = useState(false);
@@ -237,7 +191,8 @@ export default function Anatomy3D({ view, activeId, muscles, onSelect }: Anatomy
     validIdsRef.current = new Set(muscles.map((muscle) => muscle.id));
     onSelectRef.current = onSelect;
     activeIdRef.current = activeId;
-  }, [activeId, muscles, onSelect]);
+    activePartIdRef.current = activePartId;
+  }, [activeId, activePartId, muscles, onSelect]);
 
   const clearHighlights = useCallback(() => {
     const layer = highlightRef.current;
@@ -256,8 +211,11 @@ export default function Anatomy3D({ view, activeId, muscles, onSelect }: Anatomy
     highlightedMeshesRef.current = meshes;
   }, [clearHighlights]);
 
-  const highlightMuscle = useCallback((muscleId: string) => {
-    const matches = meshesRef.current.filter((mesh) => findMuscleId(mesh.name, validIdsRef.current) === muscleId);
+  const highlightMuscle = useCallback((muscleId: string, partId?: string) => {
+    const matches = meshesRef.current.filter((mesh) => {
+      const match = findMeshMatch(mesh.name, validIdsRef.current);
+      return match?.muscleId === muscleId && (!partId || match.partId === partId);
+    });
     if (matches.length) highlightMeshes(matches);
     else clearHighlights();
     return matches.length;
@@ -336,7 +294,7 @@ export default function Anatomy3D({ view, activeId, muscles, onSelect }: Anatomy
         setProgress(100);
         setModelReady(true);
         setFailed(false);
-        const selectedCount = highlightMuscle(activeIdRef.current);
+        const selectedCount = highlightMuscle(activeIdRef.current, activePartIdRef.current);
         if (!selectedCount) setClickMessage("模型已就绪；点击任意肌肉可读取真实网格名称");
       })
       .catch(() => {
@@ -358,8 +316,8 @@ export default function Anatomy3D({ view, activeId, muscles, onSelect }: Anatomy
 
   useEffect(() => {
     if (!modelReady) return;
-    highlightMuscle(activeId);
-  }, [activeId, highlightMuscle, modelReady]);
+    highlightMuscle(activeId, activePartId);
+  }, [activeId, activePartId, highlightMuscle, modelReady]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
@@ -376,16 +334,16 @@ export default function Anatomy3D({ view, activeId, muscles, onSelect }: Anatomy
     const mesh = result?.hit ? result.pickedMesh : undefined;
     if (!mesh) return;
 
-    const matchedId = findMuscleId(mesh.name, validIdsRef.current);
-    setClickedName(mesh.name || "未命名肌肉网格");
-    if (matchedId) {
-      const matchedMuscle = muscles.find((muscle) => muscle.id === matchedId);
-      highlightMuscle(matchedId);
-      setClickMessage(`已精准命中 ${matchedMuscle?.name ?? mesh.name}`);
-      onSelectRef.current(matchedId);
+    const match = findMeshMatch(mesh.name, validIdsRef.current);
+    if (match) {
+      highlightMeshes([mesh]);
+      setClickedName(`${match.english} · ${readableMeshName(mesh.name)}`);
+      setClickMessage(`已精准命中 ${match.name}`);
+      onSelectRef.current(match.muscleId, match.partId ?? "");
     } else {
       highlightMeshes([mesh]);
-      setClickMessage("已精准高亮该结构，详细资料正在补充");
+      setClickedName(readableMeshName(mesh.name));
+      setClickMessage("已识别模型结构；它不属于独立健身肌肉条目，不做错误归类");
     }
   };
 

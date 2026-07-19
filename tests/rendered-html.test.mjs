@@ -25,13 +25,14 @@ test("server-renders the medical 3D muscle map", async () => {
   assert.match(html, /肌群目录/);
   assert.match(html, /可点击并精准识别肌肉网格的轻量人体解剖 3D 模型/);
   assert.match(html, /动态动作演示/);
-  assert.match(html, /21<\/strong><span>大肌群/);
-  assert.match(html, /56<\/strong><span>精细结构/);
+  assert.match(html, /24<\/strong><span>大肌群/);
+  assert.match(html, /91<\/strong><span>精细结构/);
 });
 
 test("uses a segmented medical model with true mesh picking and a safe fallback", async () => {
-  const [model, styles, page, packageJson, vercelConfig, worker] = await Promise.all([
+  const [model, matches, styles, page, packageJson, vercelConfig, worker] = await Promise.all([
     readFile(new URL("../app/Anatomy3D.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/anatomyMatches.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -48,6 +49,13 @@ test("uses a segmented medical model with true mesh picking and a safe fallback"
   assert.match(model, /anatomy-directory/);
   assert.match(model, /真实网格高亮/);
   assert.match(model, /点击真实网格直接识别并高亮/);
+  assert.match(model, /onSelectRef\.current\(match\.muscleId, match\.partId/);
+  assert.doesNotMatch(model, /详细资料正在补充/);
+  assert.match(matches, /partId: "brachialis"/);
+  assert.match(matches, /partId: "pectoralis-minor"/);
+  assert.match(matches, /partId: "piriformis"/);
+  assert.match(matches, /partId: "tibialis-posterior"/);
+  assert.match(matches, /compactName\.includes/);
   assert.doesNotMatch(model, /FOCUS_PROFILES|camera-target|anatomy-selection-effect|INTERACTION_REGIONS|HOTSPOT_ANCHORS/);
   assert.doesNotMatch(styles, /anatomy-selection-effect/);
   assert.match(model, /BodyParts3D \/ Optima/);
