@@ -1,0 +1,1477 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Anatomy3D from "./Anatomy3D";
+
+type BodyView = "front" | "back";
+
+type MusclePart = {
+  id: string;
+  name: string;
+  english: string;
+  location: string;
+  role: string;
+  training: string[];
+  release: string;
+};
+
+type Muscle = {
+  id: string;
+  name: string;
+  english: string;
+  view: BodyView;
+  region: "上肢" | "躯干" | "下肢";
+  position: { x: number; y: number };
+  summary: string;
+  functions: string[];
+  training: { name: string; dose: string; cue: string }[];
+  recovery: { name: string; dose: string; cue: string }[];
+  caution: string;
+};
+
+type MotionKind =
+  | "shoulder-abduction"
+  | "chest-adduction"
+  | "elbow-flexion"
+  | "wrist-flexion"
+  | "trunk-flexion"
+  | "trunk-rotation"
+  | "hip-adduction"
+  | "knee-extension"
+  | "ankle-dorsiflexion"
+  | "scapular-rotation"
+  | "shoulder-rotation"
+  | "elbow-extension"
+  | "shoulder-adduction"
+  | "spine-extension"
+  | "hip-extension"
+  | "knee-flexion"
+  | "plantar-flexion"
+  | "neck-rotation"
+  | "hip-flexion"
+  | "hip-rotation";
+
+type MotionProfile = {
+  kind: MotionKind;
+  name: string;
+  english: string;
+  cue: string;
+};
+
+const MOTION_BY_MUSCLE: Record<string, MotionProfile> = {
+  neck: { kind: "neck-rotation", name: "颈部旋转与稳定", english: "Cervical rotation", cue: "颈部肌群在小幅旋转、侧屈中协同工作，同时维持头部稳定和呼吸通道空间。" },
+  deltoid: { kind: "shoulder-abduction", name: "肩外展", english: "Shoulder abduction", cue: "三角肌中束把手臂从体侧抬向肩高，肩胛骨同时平稳上回旋。" },
+  chest: { kind: "chest-adduction", name: "肩水平内收", english: "Horizontal adduction", cue: "胸大肌把展开的上臂合向身体前方，是卧推、夹胸和拥抱动作的核心。" },
+  biceps: { kind: "elbow-flexion", name: "屈肘与旋后", english: "Elbow flexion", cue: "肱二头肌缩短，让前臂靠近上臂；掌心向上时参与更明显。" },
+  forearm: { kind: "wrist-flexion", name: "腕屈伸控制", english: "Wrist control", cue: "前臂肌群控制手腕与手指，并在抓握时把腕关节稳定在合适位置。" },
+  abs: { kind: "trunk-flexion", name: "躯干屈曲", english: "Trunk flexion", cue: "腹直肌让胸廓向骨盆靠近，同时限制腰椎过度伸展。" },
+  obliques: { kind: "trunk-rotation", name: "躯干旋转", english: "Trunk rotation", cue: "两侧腹斜肌形成协同，让胸廓旋转并控制身体抵抗外力扭转。" },
+  "serratus-anterior": { kind: "scapular-rotation", name: "肩胛前伸与上回旋", english: "Scapular protraction", cue: "前锯肌把肩胛骨贴稳在胸廓，并在推拳和手臂过顶时带动肩胛前伸、上回旋。" },
+  adductors: { kind: "hip-adduction", name: "髋内收", english: "Hip adduction", cue: "大腿内收肌把腿拉向身体中线，并在单腿支撑时稳定骨盆。" },
+  quadriceps: { kind: "knee-extension", name: "伸膝", english: "Knee extension", cue: "股四头肌把弯曲的小腿伸直，是蹲起、跳跃和上台阶的主力。" },
+  tibialis: { kind: "ankle-dorsiflexion", name: "踝背屈", english: "Ankle dorsiflexion", cue: "胫骨前肌把脚尖拉向小腿，并在落地时控制前脚掌缓慢下降。" },
+  "hip-flexors": { kind: "hip-flexion", name: "髋屈", english: "Hip flexion", cue: "髂腰肌与缝匠肌把大腿抬向躯干，并在跑步摆腿和上台阶时控制髋部。" },
+  trapezius: { kind: "scapular-rotation", name: "肩胛上回旋", english: "Scapular upward rotation", cue: "斜方肌上、下束协同，让肩胛骨在手臂过顶时平稳转动。" },
+  "rotator-cuff": { kind: "shoulder-rotation", name: "肩外旋稳定", english: "External rotation", cue: "肩袖在旋转上臂的同时，把肱骨头稳定在肩胛盂中央。" },
+  infraspinatus: { kind: "shoulder-rotation", name: "肩外旋", english: "Shoulder external rotation", cue: "冈下肌从肩胛骨后侧拉动肱骨外旋，并持续压稳肱骨头。" },
+  rhomboids: { kind: "scapular-rotation", name: "肩胛后缩", english: "Scapular retraction", cue: "菱形肌把肩胛骨拉向脊柱，并协助下回旋与贴壁稳定。" },
+  "teres-major": { kind: "shoulder-adduction", name: "肩伸与内收", english: "Shoulder extension", cue: "大圆肌协同背阔肌，把上臂拉向身体并向后伸展、内旋。" },
+  triceps: { kind: "elbow-extension", name: "伸肘", english: "Elbow extension", cue: "肱三头肌把弯曲的手肘伸直，完成推起、投掷和支撑。" },
+  lats: { kind: "shoulder-adduction", name: "肩内收与伸展", english: "Shoulder adduction", cue: "背阔肌把高位手臂拉向身体和髋部，是引体与下拉动作的主力。" },
+  erectors: { kind: "spine-extension", name: "脊柱伸展控制", english: "Spinal extension", cue: "竖脊肌让躯干回到直立，并在髋铰链中抵抗脊柱被负重拉弯。" },
+  glutes: { kind: "hip-extension", name: "髋伸", english: "Hip extension", cue: "臀大肌把大腿向后拉并推动身体向前，是起身、跑跳和加速的关键。" },
+  "deep-hip": { kind: "hip-rotation", name: "髋外旋稳定", english: "Hip external rotation", cue: "深层髋外旋肌围绕股骨头工作，在转向和单腿支撑时帮助稳定髋关节。" },
+  hamstrings: { kind: "knee-flexion", name: "屈膝", english: "Knee flexion", cue: "腘绳肌把脚跟拉向臀部，同时协助髋伸和奔跑减速。" },
+  calves: { kind: "plantar-flexion", name: "踝跖屈", english: "Plantar flexion", cue: "小腿三头肌抬起脚跟，让身体向上和向前推进。" },
+};
+
+const MUSCLES: Muscle[] = [
+  {
+    id: "neck",
+    name: "头颈肌群",
+    english: "Head & neck muscles",
+    view: "front",
+    region: "躯干",
+    position: { x: 48, y: 10.5 },
+    summary: "由咀嚼肌、颈前外侧肌与颈后伸肌共同组成，负责头颈姿势、转动、吞咽辅助与呼吸配合。",
+    functions: ["胸锁乳突肌完成对侧旋转和同侧侧屈", "斜角肌稳定颈椎并可辅助吸气抬高上位肋骨", "咬肌与颞肌负责闭合下颌，夹肌参与颈部伸展和同侧旋转"],
+    training: [
+      { name: "颈部四向等长", dose: "每方向 3 组 × 10–20 秒", cue: "手掌只给轻度阻力，头部保持中立" },
+      { name: "下巴微收", dose: "3 组 × 8–12 次", cue: "像把后脑勺向上拉长，不要低头" },
+      { name: "农夫行走", dose: "3 组 × 30–45 秒", cue: "视线平行地面，肩膀自然下沉" },
+    ],
+    recovery: [
+      { name: "温和转头呼吸", dose: "每侧 5 次慢呼吸", cue: "只到舒适位置，不追求最大角度" },
+      { name: "肩胛提肌拉伸", dose: "每侧 20–30 秒 × 2", cue: "头转向腋窝，肩膀保持下沉" },
+    ],
+    caution: "出现眩晕、手臂放射痛、麻木或近期颈部外伤时，不做负重颈部训练，应先接受专业评估。",
+  },
+  {
+    id: "deltoid",
+    name: "三角肌",
+    english: "Deltoid",
+    view: "front",
+    region: "上肢",
+    position: { x: 36.5, y: 19.5 },
+    summary: "包裹肩关节的主力肌群，决定手臂抬起、前推和肩部轮廓。",
+    functions: ["中束负责肩外展，把手臂抬向身体两侧", "前束协助肩屈与内旋，参与推举和卧推", "后束协助肩伸与外旋，稳定肩胛与肱骨"],
+    training: [
+      { name: "哑铃推举", dose: "3–4 组 × 6–10 次", cue: "肋骨收住，前臂尽量垂直" },
+      { name: "侧平举", dose: "3–4 组 × 12–20 次", cue: "用肘带动，避免耸肩借力" },
+      { name: "反向飞鸟", dose: "3 组 × 12–18 次", cue: "肩胛稳定，手臂向外展开" },
+    ],
+    recovery: [
+      { name: "横臂拉伸", dose: "每侧 30 秒 × 2", cue: "肩膀远离耳朵，不要硬压关节" },
+      { name: "球压后肩", dose: "每侧 60–90 秒", cue: "靠墙缓慢滚动，避开骨点" },
+    ],
+    caution: "抬手出现夹挤样锐痛时先停止训练，不要用“硬拉开”代替评估。",
+  },
+  {
+    id: "chest",
+    name: "胸肌群",
+    english: "Pectoral muscles",
+    view: "front",
+    region: "躯干",
+    position: { x: 43.5, y: 25 },
+    summary: "以胸大肌为表层主力，胸小肌、锁骨下肌和肋间肌位于深层，共同参与推、肩带控制与胸廓呼吸。",
+    functions: ["肩水平内收：将张开的手臂合向胸前", "肩内旋与内收：参与推、抱与攀爬动作", "锁骨部协助肩屈，胸肋部协助上臂从高位下拉"],
+    training: [
+      { name: "卧推", dose: "3–5 组 × 5–10 次", cue: "肩胛后缩下沉，前臂垂直地面" },
+      { name: "俯卧撑", dose: "3 组 × 接近力竭", cue: "头到脚保持直线，胸口主动下沉" },
+      { name: "绳索夹胸", dose: "3 组 × 12–15 次", cue: "想象用上臂夹住胸口，而非手掌碰拢" },
+    ],
+    recovery: [
+      { name: "门框拉伸", dose: "每侧 30–45 秒 × 2", cue: "小步向前，肩头不要顶向前" },
+      { name: "呼吸扩胸", dose: "5 次慢呼吸", cue: "仰卧打开双臂，吸气时扩张胸廓" },
+    ],
+    caution: "训练时肩前侧疼痛，常与肩胛位置或动作幅度有关，应先减重并缩短行程。",
+  },
+  {
+    id: "biceps",
+    name: "上臂前侧肌群",
+    english: "Anterior arm muscles",
+    view: "front",
+    region: "上肢",
+    position: { x: 34.5, y: 30.5 },
+    summary: "包括肱二头肌、肱肌和喙肱肌，分别承担屈肘、旋后以及肩屈内收稳定。",
+    functions: ["屈肘：把前臂拉近上臂", "前臂旋后：把手掌转向上方", "长头协助稳定肱骨头并轻度参与肩屈"],
+    training: [
+      { name: "反手引体", dose: "3–4 组 × 4–10 次", cue: "先下沉肩胛，再把胸口拉向横杠" },
+      { name: "哑铃弯举", dose: "3 组 × 8–12 次", cue: "上臂固定，顶部主动旋掌向上" },
+      { name: "上斜弯举", dose: "3 组 × 10–15 次", cue: "肩膀留在身后，控制底部拉长" },
+    ],
+    recovery: [
+      { name: "墙面二头肌拉伸", dose: "每侧 25–30 秒 × 2", cue: "手掌贴墙，身体缓慢转开" },
+      { name: "轻柔滚压", dose: "每侧 60 秒", cue: "沿肌腹移动，不直接压肘窝" },
+    ],
+    caution: "肘窝或肩前出现针刺感时不要继续做大幅度负重弯举。",
+  },
+  {
+    id: "forearm",
+    name: "前臂肌群",
+    english: "Forearm flexors",
+    view: "front",
+    region: "上肢",
+    position: { x: 30.2, y: 38.5 },
+    summary: "由多条屈肌、伸肌与旋转肌组成，控制手腕、手指和握力。",
+    functions: ["屈伸手腕与手指，维持器械握持", "旋前与旋后，让手掌向下或向上", "在推拉动作中稳定腕关节并传递力量"],
+    training: [
+      { name: "农夫行走", dose: "3 组 × 30–45 秒", cue: "腕保持中立，肩胛自然下沉" },
+      { name: "腕屈伸", dose: "2–3 组 × 15–20 次", cue: "重量轻，完整控制上下行程" },
+      { name: "悬垂", dose: "3 组 × 20–40 秒", cue: "握紧横杠，不要用疼痛换时长" },
+    ],
+    recovery: [
+      { name: "腕屈肌拉伸", dose: "每侧 30 秒 × 2", cue: "伸直手肘，手指轻轻向后" },
+      { name: "前臂滚压", dose: "每侧 60 秒", cue: "从肘下到腕上缓慢滚动" },
+    ],
+    caution: "持续手麻或放射到手指的疼痛可能并非单纯肌肉紧张，应及时评估。",
+  },
+  {
+    id: "abs",
+    name: "腹直肌",
+    english: "Rectus abdominis",
+    view: "front",
+    region: "躯干",
+    position: { x: 47.3, y: 34.8 },
+    summary: "纵向覆盖腹部前侧，弯曲躯干并抵抗腰椎过度伸展。",
+    functions: ["躯干屈曲，让胸廓靠近骨盆", "后倾骨盆，限制腰椎过度前凸", "与深层核心协同制造腹内压，稳定脊柱"],
+    training: [
+      { name: "反向卷腹", dose: "3 组 × 10–15 次", cue: "卷起骨盆，而不是甩动双腿" },
+      { name: "死虫", dose: "3 组 × 每侧 8–12 次", cue: "腰背轻贴地面，缓慢呼气" },
+      { name: "健腹轮", dose: "3 组 × 6–12 次", cue: "臀部收紧，避免腰椎塌陷" },
+    ],
+    recovery: [
+      { name: "俯卧撑地伸展", dose: "20–30 秒 × 2", cue: "只到腹部有拉伸感，腰部不挤压" },
+      { name: "90/90 呼吸", dose: "5 次慢呼吸", cue: "长呼气让肋骨回落、腹壁放松" },
+    ],
+    caution: "核心训练追求的是控制，不是反复把腰压向疼痛区。",
+  },
+  {
+    id: "obliques",
+    name: "腹斜肌",
+    english: "External oblique",
+    view: "front",
+    region: "躯干",
+    position: { x: 40.8, y: 38.5 },
+    summary: "包围腹部侧面，负责旋转、侧屈与对抗身体被扭转。",
+    functions: ["同侧侧屈与对侧旋转躯干", "与对侧腹斜肌协同抗旋转", "压缩腹腔并稳定骨盆与胸廓关系"],
+    training: [
+      { name: "Pallof 抗旋转", dose: "3 组 × 每侧 10–12 次", cue: "骨盆正对前方，手臂缓慢伸出" },
+      { name: "侧桥", dose: "3 组 × 每侧 25–40 秒", cue: "耳、肩、髋、踝连成直线" },
+      { name: "绳索砍木", dose: "3 组 × 每侧 10–15 次", cue: "胸廓与骨盆协调转动" },
+    ],
+    recovery: [
+      { name: "跪姿侧向伸展", dose: "每侧 30 秒 × 2", cue: "向斜上方延伸，保持均匀呼吸" },
+      { name: "开放书式", dose: "每侧 6–8 次", cue: "膝盖并拢，胸椎缓慢旋转" },
+    ],
+    caution: "旋转动作应来自髋与胸椎协同，避免把所有扭力集中到腰椎。",
+  },
+  {
+    id: "serratus-anterior",
+    name: "前锯肌",
+    english: "Serratus anterior",
+    view: "front",
+    region: "躯干",
+    position: { x: 38.8, y: 31.8 },
+    summary: "沿胸廓外侧呈锯齿状连接肋骨与肩胛骨，让肩胛骨贴住胸廓并顺畅前伸、上回旋。",
+    functions: ["肩胛前伸：推拳、俯卧撑顶端继续把地面推远", "与斜方肌协同上回旋肩胛，支持手臂过顶", "把肩胛骨内侧缘稳定在胸廓表面"],
+    training: [
+      { name: "俯卧撑加号", dose: "3 组 × 10–15 次", cue: "手肘伸直后继续把上背推圆一点" },
+      { name: "墙面滑动", dose: "3 组 × 8–12 次", cue: "前臂贴墙，肩胛随手臂向上转动" },
+      { name: "单臂绳索前伸", dose: "3 组 × 每侧 10–15 次", cue: "胸廓稳定，让肩胛绕胸廓向前滑" },
+    ],
+    recovery: [
+      { name: "侧卧胸廓呼吸", dose: "每侧 5 次慢呼吸", cue: "吸气扩张侧后方肋骨，不强压腋窝" },
+      { name: "婴儿式前伸", dose: "30 秒 × 2", cue: "双手向远处延伸，保持肩胛自然上回旋" },
+    ],
+    caution: "肩胛内侧缘明显翘起并伴随抬臂无力时，不要只靠滚压处理，应进行专业评估。",
+  },
+  {
+    id: "hip-flexors",
+    name: "髋屈肌群",
+    english: "Hip flexors",
+    view: "front",
+    region: "下肢",
+    position: { x: 46, y: 48 },
+    summary: "位于髋关节前方与腹股沟深层，包括腰大肌、髂肌、缝匠肌和阔筋膜张肌，负责抬腿与控制骨盆。",
+    functions: ["髂腰肌是髋屈的主要动力，并参与腰椎和骨盆稳定", "缝匠肌协同髋屈、外展和外旋，同时帮助屈膝", "阔筋膜张肌参与髋屈与外展，并通过髂胫束稳定大腿外侧"],
+    training: [
+      { name: "悬垂屈膝", dose: "3 组 × 8–15 次", cue: "先收骨盆，再抬膝，避免身体摆动" },
+      { name: "弹力带站姿抬膝", dose: "3 组 × 每侧 10–15 次", cue: "支撑腿稳定，腰部不向后仰" },
+      { name: "台阶行进", dose: "3 组 × 每侧 8–12 次", cue: "主动抬膝并控制下降" },
+    ],
+    recovery: [
+      { name: "半跪髋前侧拉伸", dose: "每侧 30 秒 × 2", cue: "先轻收臀和骨盆后倾，再向前移动" },
+      { name: "仰卧呼吸放松", dose: "5–8 次慢呼吸", cue: "双脚放高，让腹股沟与下背部放松" },
+    ],
+    caution: "腹股沟夹痛不等于髋屈肌太紧；深蹲或抬腿持续疼痛时应减少刺激并评估髋关节。",
+  },
+  {
+    id: "adductors",
+    name: "大腿内收肌",
+    english: "Hip adductors",
+    view: "front",
+    region: "下肢",
+    position: { x: 44.4, y: 50.5 },
+    summary: "位于大腿内侧，把腿拉向身体中线，并在深蹲与变向时稳定髋部。",
+    functions: ["髋内收，让大腿靠近中线", "部分肌束协助髋屈或髋伸", "单腿支撑时帮助控制骨盆与膝盖轨迹"],
+    training: [
+      { name: "哥本哈根侧桥", dose: "3 组 × 每侧 15–30 秒", cue: "先从膝支撑版本开始" },
+      { name: "侧向弓步", dose: "3 组 × 每侧 8–12 次", cue: "坐向一侧髋部，另一腿保持延展" },
+      { name: "宽距深蹲", dose: "3–4 组 × 8–12 次", cue: "膝盖与脚尖同向" },
+    ],
+    recovery: [
+      { name: "青蛙式摇摆", dose: "8–10 次慢速", cue: "保持脊柱中立，小幅前后移动" },
+      { name: "内侧大腿滚压", dose: "每侧 60 秒", cue: "从膝上滚向腹股沟下方，避开关节" },
+    ],
+    caution: "腹股沟拉伤后不要立刻进行大幅横向拉伸，应先恢复无痛收缩。",
+  },
+  {
+    id: "quadriceps",
+    name: "股四头肌",
+    english: "Quadriceps",
+    view: "front",
+    region: "下肢",
+    position: { x: 42.5, y: 59.5 },
+    summary: "大腿前侧四块肌肉的总称，是伸直膝盖、跑跳和下蹲起身的主力。",
+    functions: ["伸膝：把小腿从弯曲位置伸直", "股直肌跨过髋关节，额外参与髋屈", "落地与下楼时离心控制膝关节弯曲"],
+    training: [
+      { name: "深蹲", dose: "3–5 组 × 5–10 次", cue: "膝盖跟随脚尖方向，脚掌三点压地" },
+      { name: "保加利亚分腿蹲", dose: "3 组 × 每侧 8–12 次", cue: "躯干稍直立，让前膝自然前移" },
+      { name: "腿屈伸", dose: "3 组 × 12–15 次", cue: "顶部停顿，下降过程保持控制" },
+    ],
+    recovery: [
+      { name: "靠墙髋屈肌拉伸", dose: "每侧 30–45 秒 × 2", cue: "收紧臀部，避免腰椎代偿" },
+      { name: "大腿前侧滚压", dose: "每侧 60–90 秒", cue: "缓慢滚动，找到紧张点后停留呼吸" },
+    ],
+    caution: "膝盖疼不等于不能训练股四头肌；优先选择无痛幅度并逐步增加负荷。",
+  },
+  {
+    id: "tibialis",
+    name: "小腿前外侧肌群",
+    english: "Anterior & lateral lower leg",
+    view: "front",
+    region: "下肢",
+    position: { x: 41.8, y: 74.1 },
+    summary: "包括胫骨前肌、趾伸肌与腓骨肌群，控制踝背屈、足内外翻和脚趾伸展。",
+    functions: ["踝背屈：把脚背拉向小腿", "协助足部内翻并维持足弓", "跑步着地后离心控制前脚掌落下"],
+    training: [
+      { name: "靠墙勾脚", dose: "3 组 × 15–25 次", cue: "脚跟不离地，尽量抬高脚尖" },
+      { name: "脚跟行走", dose: "3 组 × 20–30 米", cue: "步幅小，脚尖始终抬起" },
+      { name: "弹力带背屈", dose: "3 组 × 12–20 次", cue: "只移动脚踝，回程慢放" },
+    ],
+    recovery: [
+      { name: "跪姿小腿前侧拉伸", dose: "20–30 秒 × 2", cue: "脚背贴地，逐步向后坐" },
+      { name: "轻柔滚压", dose: "每侧 45–60 秒", cue: "压肌肉外侧，不直接压胫骨" },
+    ],
+    caution: "胫骨边缘持续局部痛或跳跃痛时，应排除应力性损伤。",
+  },
+  {
+    id: "trapezius",
+    name: "斜方肌",
+    english: "Trapezius",
+    view: "back",
+    region: "躯干",
+    position: { x: 47.2, y: 20.8 },
+    summary: "从颈后覆盖到中背，分上、中、下三束共同控制肩胛骨。",
+    functions: ["上束上提并协助肩胛上回旋", "中束让肩胛骨后缩靠拢", "下束下压肩胛，并与上束共同完成上回旋"],
+    training: [
+      { name: "农夫行走", dose: "3 组 × 30–45 秒", cue: "身体高立，肩膀自然稳定" },
+      { name: "胸托划船", dose: "3–4 组 × 8–12 次", cue: "先移动肩胛，再拉动手肘" },
+      { name: "俯卧 Y 举", dose: "3 组 × 12–15 次", cue: "拇指向上，动作轻而慢" },
+    ],
+    recovery: [
+      { name: "上斜方肌拉伸", dose: "每侧 25–30 秒 × 2", cue: "头向对侧前方轻轻点下" },
+      { name: "靠墙球压", dose: "每侧 60–90 秒", cue: "在肩胛内侧移动，避开颈椎" },
+    ],
+    caution: "“放松斜方肌”不等于永远压低肩膀；它也需要有力地完成肩胛上回旋。",
+  },
+  {
+    id: "rotator-cuff",
+    name: "肩袖肌群",
+    english: "Rotator cuff",
+    view: "back",
+    region: "上肢",
+    position: { x: 39.5, y: 26 },
+    summary: "由四块深层小肌肉组成，像袖口一样包围肱骨头，负责旋转与动态稳定肩关节。",
+    functions: ["把肱骨头稳定在肩胛盂中央", "完成肩内旋与外旋", "与三角肌协同，控制抬臂时的关节轨迹"],
+    training: [
+      { name: "弹力带外旋", dose: "3 组 × 12–20 次", cue: "肘贴身体，肩头保持居中" },
+      { name: "侧卧外旋", dose: "3 组 × 10–15 次", cue: "重量轻，缓慢控制离心" },
+      { name: "肩胛面抬举", dose: "3 组 × 10–15 次", cue: "手臂在身体前方约 30 度抬起" },
+    ],
+    recovery: [
+      { name: "横臂拉伸", dose: "每侧 25–30 秒 × 2", cue: "保持肩胛稳定，不把肩头推向前" },
+      { name: "后肩轻柔球压", dose: "每侧 45–60 秒", cue: "避开肩峰与肱骨头等骨点" },
+    ],
+    caution: "肩袖训练更看重控制与耐力；出现夜间痛、明显无力或抬臂疼痛弧时应先评估。",
+  },
+  {
+    id: "infraspinatus",
+    name: "冈下肌",
+    english: "Infraspinatus",
+    view: "back",
+    region: "上肢",
+    position: { x: 40.8, y: 25.8 },
+    summary: "覆盖肩胛冈下窝的大部分区域，是肩外旋和肱骨头后侧稳定的关键肩袖肌。",
+    functions: ["外旋肱骨，让前臂在屈肘位向外打开", "与肩胛下肌形成前后力偶，压稳肱骨头", "抬臂和投掷时提供肩关节动态稳定"],
+    training: [
+      { name: "侧卧外旋", dose: "3 组 × 10–15 次", cue: "肘旁夹毛巾，重量轻并慢放" },
+      { name: "绳索外旋", dose: "3 组 × 12–18 次", cue: "肩头保持居中，不用肩胛后缩代偿" },
+      { name: "面拉加外旋", dose: "3 组 × 10–15 次", cue: "先拉向眉心，再让拳头向后转" },
+    ],
+    recovery: [
+      { name: "横臂拉伸", dose: "每侧 25–30 秒 × 2", cue: "肩胛保持贴背，不把肩头顶向前" },
+      { name: "靠墙球压", dose: "每侧 45–60 秒", cue: "只压肩胛骨表面的肌腹，保持温和" },
+    ],
+    caution: "外旋明显无力、夜间痛或抬臂痛持续存在时，应先排查肩袖损伤。",
+  },
+  {
+    id: "rhomboids",
+    name: "菱形肌",
+    english: "Rhomboid major & minor",
+    view: "back",
+    region: "躯干",
+    position: { x: 46.2, y: 28.5 },
+    summary: "位于斜方肌深层、连接脊柱与肩胛骨内侧缘，由大菱形肌和小菱形肌组成。",
+    functions: ["肩胛后缩：把肩胛骨拉向脊柱", "协助肩胛下回旋，并稳定肩胛内侧缘", "拉、划动作中与斜方肌中束共同控制肩胛"],
+    training: [
+      { name: "胸托划船", dose: "3–4 组 × 8–12 次", cue: "先让肩胛向脊柱靠拢，再拉手肘" },
+      { name: "俯卧 T 举", dose: "3 组 × 12–15 次", cue: "重量很轻，颈部保持放松" },
+      { name: "弹力带划船停顿", dose: "3 组 × 12–18 次", cue: "末端停一秒，不用过度挺胸代偿" },
+    ],
+    recovery: [
+      { name: "抱肩上背拉伸", dose: "30 秒 × 2", cue: "双手抱肩，呼气时让肩胛向外滑" },
+      { name: "靠墙球压", dose: "每侧 45–60 秒", cue: "沿肩胛内侧肌腹移动，避开脊柱和骨缘" },
+    ],
+    caution: "菱形肌位于斜方肌深层，模型标记表示其解剖投影位置，不代表表层可完全看见。",
+  },
+  {
+    id: "teres-major",
+    name: "大圆肌",
+    english: "Teres major",
+    view: "back",
+    region: "上肢",
+    position: { x: 39.8, y: 29.2 },
+    summary: "从肩胛骨下角连向肱骨，位于后腋窝附近，常与背阔肌协同发力。",
+    functions: ["肩伸：把上臂从前方拉向身体后侧", "肩内收：把抬起的手臂拉回身体", "肩内旋，并协助稳定肱骨"],
+    training: [
+      { name: "窄握高位下拉", dose: "3–4 组 × 8–12 次", cue: "手肘向髋部移动，避免耸肩" },
+      { name: "单臂直臂下压", dose: "3 组 × 每侧 10–15 次", cue: "肩胛稳定，上臂画弧向后下方" },
+      { name: "单臂划船", dose: "3 组 × 每侧 8–12 次", cue: "手肘贴近身体，拉向后侧裤袋" },
+    ],
+    recovery: [
+      { name: "高位侧伸", dose: "每侧 30 秒 × 2", cue: "抓住固定物向后坐髋，感受腋后拉长" },
+      { name: "后腋窝轻滚", dose: "每侧 45–60 秒", cue: "压肌腹，不深入腋窝神经血管区" },
+    ],
+    caution: "后腋窝麻木、放射痛或肩前夹痛时，不要用强力滚压代替评估。",
+  },
+  {
+    id: "triceps",
+    name: "肱三头肌",
+    english: "Triceps brachii",
+    view: "back",
+    region: "上肢",
+    position: { x: 61.2, y: 31.3 },
+    summary: "覆盖上臂后侧，三条肌头共同伸直手肘，长头还参与肩伸。",
+    functions: ["伸肘：完成推起、投掷和支撑", "长头协助肩伸与肩内收", "闭链支撑中稳定肘关节"],
+    training: [
+      { name: "窄距卧推", dose: "3–4 组 × 6–10 次", cue: "手肘不过度外展，腕保持中立" },
+      { name: "绳索下压", dose: "3 组 × 10–15 次", cue: "上臂固定，底部完全伸肘" },
+      { name: "过顶臂屈伸", dose: "3 组 × 10–15 次", cue: "肋骨收住，感受长头拉长" },
+    ],
+    recovery: [
+      { name: "过顶三头肌拉伸", dose: "每侧 30 秒 × 2", cue: "手肘指向上方，不挤压颈部" },
+      { name: "轻柔滚压", dose: "每侧 60 秒", cue: "沿上臂后侧移动，避开肘尖" },
+    ],
+    caution: "肘后侧疼痛时先减少锁死式伸肘和高容量下压。",
+  },
+  {
+    id: "lats",
+    name: "背阔肌",
+    english: "Latissimus dorsi",
+    view: "back",
+    region: "躯干",
+    position: { x: 54.5, y: 34.5 },
+    summary: "覆盖中下背的大面积肌肉，把上臂拉向身体并向后伸展。",
+    functions: ["肩伸与内收：把上臂从前上方拉回身体", "肩内旋，并参与攀爬、划船与引体", "通过胸腰筋膜协助连接上肢与骨盆力量"],
+    training: [
+      { name: "引体向上", dose: "3–5 组 × 4–10 次", cue: "肩胛先下沉，手肘向髋部靠近" },
+      { name: "高位下拉", dose: "3–4 组 × 8–12 次", cue: "胸口上提，不要向后大幅摆动" },
+      { name: "单臂划船", dose: "3 组 × 每侧 8–12 次", cue: "沿髋部方向拉肘，控制肩胛前伸" },
+    ],
+    recovery: [
+      { name: "婴儿式侧伸", dose: "每侧 30–45 秒 × 2", cue: "双手移向对侧，向后坐髋" },
+      { name: "泡沫轴滚压", dose: "每侧 60–90 秒", cue: "从腋下沿背侧滚动，避免压肋骨" },
+    ],
+    caution: "下拉时手臂麻木或肩前夹痛，不要强行追求更宽握距。",
+  },
+  {
+    id: "erectors",
+    name: "脊柱后侧肌群",
+    english: "Posterior spinal muscles",
+    view: "back",
+    region: "躯干",
+    position: { x: 48, y: 41.8 },
+    summary: "由竖脊肌、多裂肌与腰方肌等组成，负责直立、侧屈、节段稳定和负重时的脊柱控制。",
+    functions: ["双侧收缩伸展脊柱，维持直立", "单侧收缩协助躯干侧屈", "髋铰链与负重动作中等长稳定脊柱"],
+    training: [
+      { name: "罗马尼亚硬拉", dose: "3–4 组 × 6–10 次", cue: "髋部向后，脊柱保持长而稳定" },
+      { name: "俯卧挺身", dose: "3 组 × 10–15 次", cue: "从髋部折叠，不在顶部过伸腰椎" },
+      { name: "鸟狗式", dose: "3 组 × 每侧 8–12 次", cue: "骨盆保持水平，手脚向远处延伸" },
+    ],
+    recovery: [
+      { name: "婴儿式呼吸", dose: "5–8 次慢呼吸", cue: "吸气时感受后腰与背部扩张" },
+      { name: "猫牛式", dose: "6–10 次慢速", cue: "逐节活动，幅度以舒适为准" },
+    ],
+    caution: "急性腰痛时不建议直接用泡沫轴重压脊柱，应先寻找舒适活动范围。",
+  },
+  {
+    id: "glutes",
+    name: "臀肌群",
+    english: "Gluteal muscles",
+    view: "back",
+    region: "下肢",
+    position: { x: 54.5, y: 49.3 },
+    summary: "臀大肌负责髋伸，臀中小肌稳定骨盆，共同支持走、跑、蹲和单腿动作。",
+    functions: ["臀大肌伸髋与外旋，是起身和加速的主力", "臀中小肌外展髋部并稳定单腿骨盆", "落地和下蹲时控制股骨位置"],
+    training: [
+      { name: "杠铃臀推", dose: "3–4 组 × 6–12 次", cue: "顶部收臀，避免腰椎过伸" },
+      { name: "分腿蹲", dose: "3 组 × 每侧 8–12 次", cue: "前脚全掌发力，髋膝同步弯曲" },
+      { name: "罗马尼亚硬拉", dose: "3–4 组 × 6–10 次", cue: "髋后移，感受臀部与腿后侧拉长" },
+    ],
+    recovery: [
+      { name: "4 字拉伸", dose: "每侧 30–45 秒 × 2", cue: "骨盆保持平稳，缓慢靠近身体" },
+      { name: "球压臀肌", dose: "每侧 60–90 秒", cue: "寻找肌腹紧张点，不压坐骨" },
+    ],
+    caution: "膝内扣往往不只是“臀肌无力”，还与动作策略、足部和负荷有关。",
+  },
+  {
+    id: "deep-hip",
+    name: "深层髋外旋肌",
+    english: "Deep hip rotators",
+    view: "back",
+    region: "下肢",
+    position: { x: 47, y: 51 },
+    summary: "梨状肌、闭孔肌、孖肌和股方肌位于臀大肌深层，围绕股骨头形成精细的旋转与稳定系统。",
+    functions: ["在髋伸展位协助股骨外旋", "髋屈曲时部分纤维可参与外展和方向控制", "走路、转向和单腿支撑时帮助股骨头稳定在髋臼内"],
+    training: [
+      { name: "侧卧髋外旋", dose: "3 组 × 每侧 12–20 次", cue: "骨盆不后滚，动作幅度保持可控" },
+      { name: "坐姿弹力带外旋", dose: "3 组 × 12–18 次", cue: "大腿稳定，只让小腿向内移动带动髋外旋" },
+      { name: "单腿罗马尼亚硬拉", dose: "3 组 × 每侧 6–10 次", cue: "骨盆保持朝前，足弓稳定" },
+    ],
+    recovery: [
+      { name: "仰卧 4 字活动", dose: "每侧 30 秒 × 2", cue: "只感受臀部拉长，不压迫膝关节" },
+      { name: "臀后侧球压", dose: "每侧 45–60 秒", cue: "压力温和，出现腿部麻电感立即停止" },
+    ],
+    caution: "所谓“梨状肌综合征”不能仅凭臀部紧张自我判断；伴随腿部麻木或放射痛时应先评估神经与腰髋来源。",
+  },
+  {
+    id: "hamstrings",
+    name: "腘绳肌",
+    english: "Hamstrings",
+    view: "back",
+    region: "下肢",
+    position: { x: 54.5, y: 59 },
+    summary: "大腿后侧三组主要肌肉，跨过髋和膝，控制髋伸与屈膝。",
+    functions: ["屈膝：让脚跟靠近臀部", "伸髋：与臀大肌共同把大腿拉向后方", "奔跑摆动末期离心减速小腿"],
+    training: [
+      { name: "罗马尼亚硬拉", dose: "3–4 组 × 6–10 次", cue: "小腿近乎垂直，髋部持续后移" },
+      { name: "腿弯举", dose: "3 组 × 10–15 次", cue: "骨盆稳定，回程慢放" },
+      { name: "北欧腿弯举", dose: "3 组 × 3–8 次", cue: "从髋到膝保持直线，优先控制下降" },
+    ],
+    recovery: [
+      { name: "动态腿后侧伸展", dose: "每侧 8–10 次", cue: "保持背部延展，从髋部前倾" },
+      { name: "泡沫轴滚压", dose: "每侧 60–90 秒", cue: "从坐骨下方滚到膝上方" },
+    ],
+    caution: "冲刺后突然出现后侧刺痛或瘀青，应停止拉伸并尽快评估。",
+  },
+  {
+    id: "calves",
+    name: "小腿后侧肌群",
+    english: "Posterior lower leg",
+    view: "back",
+    region: "下肢",
+    position: { x: 54, y: 72 },
+    summary: "表层腓肠肌、比目鱼肌负责推进，深层胫骨后肌、趾屈肌和腘肌控制足弓、脚趾与膝踝稳定。",
+    functions: ["踝跖屈：把脚跟抬离地面", "腓肠肌跨过膝关节，协助屈膝", "步态中储存与释放弹性能量，稳定踝足"],
+    training: [
+      { name: "站姿提踵", dose: "4 组 × 8–15 次", cue: "底部充分下沉，顶部停顿 1 秒" },
+      { name: "坐姿提踵", dose: "3–4 组 × 12–20 次", cue: "屈膝状态更偏向比目鱼肌" },
+      { name: "跳绳", dose: "4 组 × 45–60 秒", cue: "轻柔落地，保持均匀节奏" },
+    ],
+    recovery: [
+      { name: "直膝靠墙拉伸", dose: "每侧 30 秒 × 2", cue: "后脚跟压地，脚尖朝前" },
+      { name: "屈膝小腿拉伸", dose: "每侧 30 秒 × 2", cue: "保持脚跟不抬，膝盖向前移动" },
+    ],
+    caution: "跟腱晨起僵硬或跳跃疼痛时，应控制冲击量，不要只靠拉伸处理。",
+  },
+];
+
+const PARTS_BY_MUSCLE: Partial<Record<string, MusclePart[]>> = {
+  neck: [
+    { id: "masseter", name: "咬肌", english: "Masseter", location: "位于下颌支外侧，从颧弓连向下颌角。", role: "强力闭合下颌，在咀嚼和咬合稳定中承担主要负荷。", training: ["轻度咬合控制", "下颌放松练习"], release: "舌尖轻贴上腭、牙齿分开，用指腹在下颌角上方轻柔按摩；不要长时间用力咬紧。" },
+    { id: "temporalis", name: "颞肌", english: "Temporalis", location: "覆盖太阳穴区域，肌腱向下穿过颧弓连接下颌。", role: "闭合并后缩下颌，与咬肌共同控制咀嚼轨迹。", training: ["自然咀嚼", "下颌中立控制"], release: "在太阳穴用指腹画小圈，保持轻压；头痛或颞下颌关节弹响明显时不要强按。" },
+    { id: "platysma", name: "颈阔肌", english: "Platysma", location: "位于颈前浅层，从胸上部筋膜延伸至下颌。", role: "牵拉下唇和下颌周围软组织，并辅助颈前表情与张力调节。", training: ["下巴微收", "自然吞咽控制"], release: "采用轻柔颈前伸展，不直接深压颈前血管和气管区域。" },
+    { id: "sternocleidomastoid", name: "胸锁乳突肌", english: "Sternocleidomastoid", location: "从胸骨和锁骨连向耳后乳突，斜跨颈部前外侧。", role: "单侧使头向对侧旋转并同侧侧屈，双侧参与颈屈和吸气辅助。", training: ["颈部旋转等长", "下巴微收", "轻阻力侧屈"], release: "缓慢转头并轻微侧屈；只触碰肌腹表面，不夹捏或深压颈动脉区域。" },
+    { id: "scalenes", name: "斜角肌群", english: "Scalenes", location: "位于颈椎横突与第一、第二肋之间，处在颈部较深层。", role: "参与颈部侧屈并辅助抬高上位肋骨，是呼吸和颈椎稳定的协同肌。", training: ["侧屈等长", "鼻吸腹式呼吸", "轻负重行走"], release: "用慢呼吸和温和侧屈放松，不在锁骨上窝深压。" },
+    { id: "splenius", name: "夹肌群", english: "Splenius capitis & cervicis", location: "位于颈后深层，从上胸椎和项韧带连向颈椎与颅骨。", role: "双侧伸展头颈，单侧完成同侧旋转与侧屈。", training: ["颈后等长", "俯卧下巴微收", "农夫行走"], release: "保持下巴微收后做小幅低头和转头，避免强力压迫颈椎棘突。" },
+  ],
+  deltoid: [
+    {
+      id: "anterior-deltoid",
+      name: "前束",
+      english: "Anterior deltoid",
+      location: "起于锁骨外侧，覆盖肩部前方。",
+      role: "主要参与肩屈、肩内旋与水平内收，在推举、卧推前段和向前抬臂时活跃。",
+      training: ["哑铃推举", "上斜卧推", "绳索前平举"],
+      release: "用门框做低角度胸肩拉伸；肩前有夹痛时不要强压。",
+    },
+    {
+      id: "middle-deltoid",
+      name: "中束",
+      english: "Middle deltoid",
+      location: "起于肩峰，位于肩部最外侧。",
+      role: "肩外展的主力，尤其负责手臂由身体侧面抬起，决定肩部横向宽度。",
+      training: ["哑铃侧平举", "单臂绳索侧平举", "器械侧平举"],
+      release: "横臂拉伸配合后外侧肩部轻柔球压，避免直接压肩峰。",
+    },
+    {
+      id: "posterior-deltoid",
+      name: "后束",
+      english: "Posterior deltoid",
+      location: "起于肩胛冈，覆盖肩关节后方。",
+      role: "参与肩伸、水平外展和外旋，帮助平衡大量推类训练带来的前侧优势。",
+      training: ["反向飞鸟", "面拉", "高位宽肘划船"],
+      release: "横臂拉伸或靠墙滚压后肩肌腹，保持肩胛不向前滑。",
+    },
+  ],
+  chest: [
+    {
+      id: "clavicular-pec",
+      name: "锁骨部",
+      english: "Clavicular head",
+      location: "位于胸大肌上方，纤维从锁骨斜向肱骨。",
+      role: "除水平内收外，更明显地参与肩屈，常被称为“上胸”。",
+      training: ["上斜卧推", "低位到高位夹胸", "脚低位俯卧撑"],
+      release: "门框拉伸时手臂略低于肩，缓慢转开胸口。",
+    },
+    {
+      id: "sternocostal-pec",
+      name: "胸肋部",
+      english: "Sternocostal head",
+      location: "胸大肌面积最大的中部纤维，起于胸骨和肋软骨。",
+      role: "负责强力水平内收和内旋，是平板卧推与俯卧撑的主要贡献者。",
+      training: ["平板卧推", "俯卧撑", "水平绳索夹胸"],
+      release: "手臂与肩同高做门框拉伸，控制肩头不要向前顶。",
+    },
+    {
+      id: "abdominal-pec",
+      name: "腹部纤维",
+      english: "Abdominal fibers",
+      location: "位于胸大肌下缘，纤维方向由下向外上方。",
+      role: "协助把高位上臂拉向下方和身体中线；这是纤维区域，不是独立肌头。",
+      training: ["双杠臂屈伸", "高位到低位夹胸", "下斜卧推"],
+      release: "手臂稍高于肩做门框拉伸，保持肋骨不过度外翻。",
+    },
+    { id: "pectoralis-minor", name: "胸小肌", english: "Pectoralis minor", location: "位于胸大肌深层，从第 3–5 肋连向肩胛骨喙突。", role: "使肩胛骨前倾、下沉并贴向胸廓，也可在固定肩胛时辅助吸气。", training: ["俯卧撑加前伸", "肩胛控制下压", "熊爬支撑"], release: "门框拉伸配合慢呼吸；不要在喙突和腋窝前方做强力球压。" },
+    { id: "subclavius", name: "锁骨下肌", english: "Subclavius", location: "位于锁骨下方，连接第一肋与锁骨中段。", role: "轻度下压并稳定锁骨，参与肩带与胸锁关节的细微控制。", training: ["农夫行走", "肩带稳定支撑", "呼吸控制"], release: "采用扩胸呼吸和轻柔锁骨下方表面按摩，不深压锁骨下血管神经区域。" },
+    { id: "intercostals", name: "肋间肌", english: "Intercostal muscles", location: "分层排列在相邻肋骨之间。", role: "在呼吸时协助提升或下降肋骨，并稳定胸廓。", training: ["侧向胸廓呼吸", "负重行走呼吸", "侧桥呼吸"], release: "用侧卧或婴儿式进行慢呼吸，感受肋骨向四周扩张；不直接重压肋骨。" },
+  ],
+  biceps: [
+    {
+      id: "biceps-long-head",
+      name: "长头",
+      english: "Long head",
+      location: "位于上臂外侧，肌腱跨过肩关节盂上方。",
+      role: "屈肘、旋后并协助稳定肩前侧；肩伸位弯举时处于更长肌长。",
+      training: ["上斜哑铃弯举", "窄握杠铃弯举", "贝叶斯绳索弯举"],
+      release: "肩伸位做温和二头肌拉伸，不直接压肱二头肌长头肌腱。",
+    },
+    {
+      id: "biceps-short-head",
+      name: "短头",
+      english: "Short head",
+      location: "位于上臂内侧，起于肩胛骨喙突。",
+      role: "同样负责屈肘与旋后，并更明显参与肩内收；宽握弯举常用于偏向内侧。",
+      training: ["宽握杠铃弯举", "牧师凳弯举", "集中弯举"],
+      release: "伸直肘并把手掌贴墙，身体小幅转开，避免麻电感。",
+    },
+    { id: "brachialis", name: "肱肌", english: "Brachialis", location: "位于肱二头肌深层，从肱骨前面连向尺骨。", role: "不受前臂旋转位置影响，是稳定而强力的纯屈肘肌。", training: ["锤式弯举", "反握弯举", "中立握引体"], release: "伸直肘并让上臂轻度后伸，沿上臂外下侧肌腹温和滚压。" },
+    { id: "coracobrachialis", name: "喙肱肌", english: "Coracobrachialis", location: "从肩胛骨喙突连向肱骨内侧中段，位于上臂近端内侧。", role: "协助肩屈和内收，并帮助肱骨头在肩关节中保持稳定。", training: ["窄距绳索前举", "夹臂等长", "低位单臂推"], release: "采用温和的肩伸展，不在腋窝深处或上臂内侧神经血管区域强压。" },
+  ],
+  forearm: [
+    { id: "brachioradialis", name: "肱桡肌", english: "Brachioradialis", location: "从肱骨外侧下段跨过肘关节连向桡骨远端。", role: "在前臂中立位最有效地屈肘，并帮助前臂从旋前或旋后回到中立。", training: ["锤式弯举", "反握弯举", "中立握划船"], release: "伸肘、前臂旋前后轻柔拉长，沿前臂外侧肌腹滚压。" },
+    {
+      id: "wrist-flexors",
+      name: "腕屈肌群",
+      english: "Wrist flexors",
+      location: "前臂掌侧，多数起于肱骨内上髁。",
+      role: "屈曲手腕、协助抓握，并在拉类动作中稳定腕部。",
+      training: ["正握腕弯举", "毛巾悬垂", "粗握把农夫行走"],
+      release: "伸肘、掌心向前，轻拉手指向下后方。",
+    },
+    {
+      id: "wrist-extensors",
+      name: "腕伸肌群",
+      english: "Wrist extensors",
+      location: "前臂背侧，多数起于肱骨外上髁。",
+      role: "伸展手腕并在抓握时维持腕中立，常与网球肘负荷相关。",
+      training: ["反握腕弯举", "橡皮筋手指外展", "偏心腕伸展"],
+      release: "伸肘、掌心向下，轻拉手背向身体方向。",
+    },
+    {
+      id: "pronators",
+      name: "旋前肌群",
+      english: "Pronators",
+      location: "由旋前圆肌和旋前方肌为主，位于前臂前内侧。",
+      role: "把手掌转向下方，并在推、投掷和器械握持中稳定前臂。",
+      training: ["锤柄旋前", "绳索旋前", "中立握负重转腕"],
+      release: "肘贴身体，以无负重方式缓慢旋后到舒适终点。",
+    },
+    {
+      id: "supinators",
+      name: "旋后肌群",
+      english: "Supinators",
+      location: "以旋后肌和肱二头肌为主，分布于近端前臂。",
+      role: "把手掌转向上方，在反手拉和弯举动作中参与明显。",
+      training: ["哑铃旋后", "反手引体", "旋后位弯举"],
+      release: "前臂支撑在桌面，缓慢转为掌心向下，不用另一只手硬压。",
+    },
+    { id: "hand-intrinsics", name: "手内在肌", english: "Intrinsic hand muscles", location: "位于手掌与掌骨之间，包括鱼际、小鱼际、骨间肌和蚓状肌。", role: "完成拇指对掌、手指精细外展内收，并在抓握时调整掌弓和指关节。", training: ["橡皮筋手指外展", "轻球捏握", "米桶手指练习"], release: "张开手掌并逐指轻柔活动，用软球轻滚掌心；麻木时不要持续强压腕管区域。" },
+  ],
+  abs: [
+    {
+      id: "upper-rectus",
+      name: "上段肌腹",
+      english: "Upper region",
+      location: "位于腹直肌剑突、肋软骨到脐部之间。",
+      role: "卷腹类动作中胸廓向骨盆靠近的感觉更明显；它不是独立的一块肌肉。",
+      training: ["绳索卷腹", "健身球卷腹", "负重卷腹"],
+      release: "俯卧撑地伸展配合慢呼气，避免腰椎末端挤压。",
+    },
+    {
+      id: "lower-rectus",
+      name: "下段肌腹",
+      english: "Lower region",
+      location: "位于脐部到耻骨之间，与上段连续。",
+      role: "骨盆后倾和反向卷腹时体感更强，但无法把它与上段完全隔离。",
+      training: ["反向卷腹", "悬垂举膝", "死虫"],
+      release: "用 90/90 呼吸放松腹壁，再做小幅髋屈肌伸展。",
+    },
+  ],
+  obliques: [
+    {
+      id: "external-oblique",
+      name: "腹外斜肌",
+      english: "External oblique",
+      location: "腹壁最表层，纤维由外上向内下走行。",
+      role: "同侧侧屈、对侧旋转，并与对侧腹内斜肌形成旋转协同。",
+      training: ["绳索砍木", "侧桥", "单侧负重行走"],
+      release: "跪姿侧向伸展，向斜上方延伸并保持均匀呼吸。",
+    },
+    {
+      id: "internal-oblique",
+      name: "腹内斜肌",
+      english: "Internal oblique",
+      location: "位于腹外斜肌深层，纤维方向大体相反。",
+      role: "同侧旋转与侧屈，参与腹压和骨盆—胸廓稳定。",
+      training: ["半跪姿抗旋转", "鸟狗划船", "低位砍木"],
+      release: "开放书式配合长呼气，不追求腰椎大幅扭转。",
+    },
+    {
+      id: "transversus-abdominis",
+      name: "腹横肌",
+      english: "Transversus abdominis",
+      location: "腹壁最深层，纤维像腰带一样横向环绕。",
+      role: "主要贡献腹内压和躯干刚度，不负责明显的躯干旋转。",
+      training: ["死虫", "Pallof 抗旋转", "负重呼吸与行走"],
+      release: "仰卧屈膝做环周呼吸，吸气时让侧腰和后腰同时扩张。",
+    },
+  ],
+  "serratus-anterior": [
+    {
+      id: "serratus-superior",
+      name: "上部纤维",
+      english: "Superior fibers",
+      location: "主要连接上位肋骨与肩胛骨上角附近。",
+      role: "帮助肩胛骨贴稳胸廓，并为肩胛旋转提供稳定轴。",
+      training: ["墙面前伸", "轻阻力肩胛俯卧撑", "墙面滑动"],
+      release: "用侧后方胸廓呼吸改善活动，不直接强压肋骨。",
+    },
+    {
+      id: "serratus-middle",
+      name: "中部纤维",
+      english: "Intermediate fibers",
+      location: "从中上位肋骨走向肩胛骨内侧缘。",
+      role: "明显参与肩胛前伸，让肩胛骨沿胸廓向外滑动。",
+      training: ["俯卧撑加号", "单臂绳索前伸", "熊爬"],
+      release: "抱肩并做长呼气，让肩胛自然向外滑动。",
+    },
+    {
+      id: "serratus-inferior",
+      name: "下部纤维",
+      english: "Inferior fibers",
+      location: "由下位肋骨汇向肩胛骨下角，纤维呈扇形。",
+      role: "与斜方肌共同完成肩胛上回旋，是过顶动作的重要部分。",
+      training: ["墙面滑动抬离", "陆雷管推举", "过顶前伸"],
+      release: "婴儿式向远处延伸双手，配合侧后方吸气。",
+    },
+  ],
+  "hip-flexors": [
+    { id: "psoas-major", name: "腰大肌", english: "Psoas major", location: "从腰椎两侧向下跨过骨盆，与髂肌共同止于股骨小转子。", role: "强力屈髋，并在躯干和大腿相对运动时参与腰椎、骨盆稳定。", training: ["弹力带抬膝", "悬垂屈膝", "坐姿直腿抬高"], release: "半跪位先做骨盆后倾再轻移重心；不要在腹部深压寻找腰大肌。" },
+    { id: "iliacus", name: "髂肌", english: "Iliacus", location: "覆盖骨盆内侧髂窝，与腰大肌汇合形成髂腰肌。", role: "屈髋并帮助股骨头在髋臼前方保持稳定。", training: ["站姿抬膝", "低台阶行进", "仰卧屈髋等长"], release: "采用半跪髋前侧拉伸和慢呼吸，避免腹股沟夹痛。" },
+    { id: "sartorius", name: "缝匠肌", english: "Sartorius", location: "从髂前上棘斜跨大腿前面，止于胫骨内侧鹅足。", role: "组合完成髋屈、外展、外旋和屈膝，是人体最长的肌肉。", training: ["台阶抬膝", "弹力带对角抬腿", "低负荷跨步"], release: "轻柔拉伸髋前外侧和大腿内侧，不沿整条肌肉强力滚压。" },
+    { id: "tensor-fasciae-latae", name: "阔筋膜张肌", english: "Tensor fasciae latae", location: "位于髋前外侧，向下连接髂胫束。", role: "参与髋屈、外展和内旋，并通过髂胫束帮助稳定膝外侧。", training: ["侧向弹力带走", "单腿站立", "侧卧小幅外展"], release: "优先拉伸髋前外侧和放松臀中肌；不要直接重压髂胫束。" },
+  ],
+  adductors: [
+    {
+      id: "adductor-magnus",
+      name: "大收肌",
+      english: "Adductor magnus",
+      location: "大腿内侧面积最大，后部纤维延伸到股骨内上方。",
+      role: "强力髋内收；后部纤维还能像腘绳肌一样参与伸髋。",
+      training: ["宽距深蹲", "侧向弓步", "相扑硬拉"],
+      release: "青蛙式小幅摇摆，避免拉伤后早期做强力静态拉伸。",
+    },
+    {
+      id: "adductor-longus",
+      name: "长收肌",
+      english: "Adductor longus",
+      location: "位于大腿内侧较表浅，呈扇形向股骨中段展开。",
+      role: "髋内收并在部分角度协助髋屈，是变向稳定的重要肌肉。",
+      training: ["哥本哈根侧桥", "滑垫侧弓步", "绳索髋内收"],
+      release: "仰卧屈膝开髋，保持腹股沟只有温和牵拉感。",
+    },
+    {
+      id: "adductor-brevis",
+      name: "短收肌",
+      english: "Adductor brevis",
+      location: "藏在长收肌深层，连接耻骨与股骨近端。",
+      role: "协助髋内收与轻度髋屈，更多作为内收肌群协同工作。",
+      training: ["短杠杆哥本哈根侧桥", "坐姿夹球", "低负荷髋内收"],
+      release: "采用短幅度蝶式呼吸，不需要追求膝盖贴地。",
+    },
+    {
+      id: "gracilis",
+      name: "股薄肌",
+      english: "Gracilis",
+      location: "沿大腿最内侧纵向走行，是唯一跨过膝关节的主要内收肌。",
+      role: "髋内收，同时协助屈膝和小腿内旋。",
+      training: ["长杠杆哥本哈根侧桥", "侧向拖雪橇", "弹力带髋内收"],
+      release: "伸膝位做侧向髋铰链，动作小而慢。",
+    },
+    {
+      id: "pectineus",
+      name: "耻骨肌",
+      english: "Pectineus",
+      location: "位于腹股沟前内侧，连接耻骨与股骨近端。",
+      role: "髋内收并协助髋屈，在抬腿与方向变化中参与。",
+      training: ["站姿绳索内收", "低台阶上步", "坐姿夹球等长"],
+      release: "半跪姿轻度伸髋并向外移髋，避开腹股沟直接重压。",
+    },
+  ],
+  quadriceps: [
+    {
+      id: "rectus-femoris",
+      name: "股直肌",
+      english: "Rectus femoris",
+      location: "位于大腿前侧中央，是股四头肌中唯一跨髋、膝两个关节者。",
+      role: "伸膝并协助髋屈；髋伸位训练会让它处于更长肌长。",
+      training: ["西西深蹲", "后脚抬高分腿蹲", "腿屈伸"],
+      release: "靠墙髋屈肌拉伸，主动收臀避免腰椎代偿。",
+    },
+    {
+      id: "vastus-lateralis",
+      name: "股外侧肌",
+      english: "Vastus lateralis",
+      location: "覆盖大腿前外侧，是股四头肌中体积较大的部分。",
+      role: "强力伸膝，并与股内侧肌共同控制髌骨轨迹。",
+      training: ["深蹲", "哈克深蹲", "腿举"],
+      release: "滚压大腿前外侧肌腹，不把髂胫束当作可被“滚松”的肌肉。",
+    },
+    {
+      id: "vastus-medialis",
+      name: "股内侧肌",
+      english: "Vastus medialis",
+      location: "位于大腿前内侧，靠近膝部呈水滴形。",
+      role: "伸膝并参与髌骨内侧稳定；无法只靠改变脚尖方向完全隔离。",
+      training: ["全幅度深蹲", "台阶下蹲", "腿屈伸末端控制"],
+      release: "轻滚膝上内侧肌腹，避免直接压髌骨与内侧关节线。",
+    },
+    {
+      id: "vastus-intermedius",
+      name: "股中间肌",
+      english: "Vastus intermedius",
+      location: "位于股直肌深层，贴近股骨前表面。",
+      role: "纯粹参与伸膝，是深层但重要的力量来源。",
+      training: ["腿屈伸", "前蹲", "反向拖雪橇"],
+      release: "通过大腿前侧整体滚压与主动屈膝活动间接处理。",
+    },
+  ],
+  tibialis: [
+    { id: "tibialis-anterior", name: "胫骨前肌", english: "Tibialis anterior", location: "位于小腿前外侧、胫骨旁，肌腱跨过踝前到足内侧。", role: "完成踝背屈并协助足内翻，在走跑落地时离心控制脚掌下降。", training: ["靠墙勾脚", "脚跟行走", "弹力带背屈"], release: "跪姿轻拉小腿前侧或沿肌腹温和滚压，不直接压胫骨。" },
+    { id: "extensor-digitorum-longus", name: "趾长伸肌", english: "Extensor digitorum longus", location: "位于小腿前外侧，肌腱分向第 2–5 趾。", role: "伸展外侧四趾并协助踝背屈、足外翻。", training: ["弹力带背屈外翻", "脚趾伸展", "脚跟行走"], release: "放松鞋带压力并做温和跖屈活动，不压踝前肌腱。" },
+    { id: "extensor-hallucis-longus", name: "𧿹长伸肌", english: "Extensor hallucis longus", location: "位于小腿前深层，肌腱跨踝前连向大脚趾。", role: "伸大脚趾并协助踝背屈，对摆动期足尖离地很重要。", training: ["大脚趾主动伸展", "弹力带背屈", "脚跟行走"], release: "做轻柔脚趾屈曲和踝跖屈，不在足背肌腱上重压。" },
+    { id: "fibularis", name: "腓骨肌群", english: "Fibularis muscles", location: "位于小腿外侧，主要包括腓骨长肌、短肌和第三腓骨肌。", role: "使足外翻并协助跖屈或背屈，在不平地面和单腿支撑时稳定踝外侧。", training: ["弹力带足外翻", "单腿平衡", "侧向提踵控制"], release: "沿腓骨后外侧肌腹轻柔滚压，避开腓骨头附近的腓总神经。" },
+  ],
+  trapezius: [
+    {
+      id: "upper-trap",
+      name: "上束",
+      english: "Upper trapezius",
+      location: "从枕骨和颈椎延伸到锁骨外侧。",
+      role: "上提并上回旋肩胛，抬臂过头时不是“需要关掉”的肌肉。",
+      training: ["农夫行走", "哑铃耸肩", "过顶行走"],
+      release: "轻柔侧屈颈部配合呼吸，避免长时间强压颈侧。",
+    },
+    {
+      id: "middle-trap",
+      name: "中束",
+      english: "Middle trapezius",
+      location: "水平连接上胸椎与肩胛冈、肩峰。",
+      role: "使肩胛后缩，并在划船动作中稳定肩胛骨。",
+      training: ["胸托划船", "俯卧 T 举", "坐姿宽握划船"],
+      release: "用球靠墙滚压肩胛内侧肌腹，不直接压脊柱。",
+    },
+    {
+      id: "lower-trap",
+      name: "下束",
+      english: "Lower trapezius",
+      location: "从中下胸椎斜向上连接肩胛冈内侧。",
+      role: "下压并上回旋肩胛，与上束、前锯肌共同支持过顶动作。",
+      training: ["俯卧 Y 举", "墙面滑动抬离", "单臂高位下压"],
+      release: "婴儿式侧伸配合后背呼吸，减少过度挺胸代偿。",
+    },
+    { id: "levator-scapulae", name: "肩胛提肌", english: "Levator scapulae", location: "从上位颈椎横突连向肩胛骨上角。", role: "上提并下回旋肩胛骨，也参与颈部同侧侧屈和旋转控制。", training: ["单臂农夫行走", "轻负荷肩胛上提", "颈侧等长"], release: "头转向对侧腋窝并轻微低头，保持同侧肩膀下沉；不要强拉。" },
+  ],
+  "rotator-cuff": [
+    {
+      id: "supraspinatus",
+      name: "冈上肌",
+      english: "Supraspinatus",
+      location: "位于肩胛冈上方，肌腱从肩峰下穿过。",
+      role: "启动肩外展并压稳肱骨头，与三角肌共同完成抬臂。",
+      training: ["肩胛面满罐抬举", "轻阻力外展", "等长外展"],
+      release: "优先改善胸椎和肩胛活动，不直接重压肩峰下方。",
+    },
+    {
+      id: "infraspinatus",
+      name: "冈下肌",
+      english: "Infraspinatus",
+      location: "覆盖肩胛冈下方的大部分后侧表面。",
+      role: "肩外旋的主要肌肉，并在上臂移动时稳定肱骨头。",
+      training: ["侧卧外旋", "绳索外旋", "面拉加外旋"],
+      release: "用球靠墙滚压肩胛骨表面肌腹，强度保持温和。",
+    },
+    {
+      id: "teres-minor",
+      name: "小圆肌",
+      english: "Teres minor",
+      location: "位于肩胛外侧缘，冈下肌下方。",
+      role: "协助肩外旋和轻度内收，在高位手臂稳定中重要。",
+      training: ["90/90 外旋", "俯卧外旋", "弹力带外旋走"],
+      release: "在后腋窝上方做小范围球压，避开腋窝神经血管区。",
+    },
+    {
+      id: "subscapularis",
+      name: "肩胛下肌",
+      english: "Subscapularis",
+      location: "位于肩胛骨前面、贴近胸廓，是肩袖唯一主要内旋肌。",
+      role: "肩内旋并从前方稳定肱骨头，与后三块肩袖形成力偶。",
+      training: ["弹力带内旋", "腹前等长内旋", "轻量熊爬"],
+      release: "它位置很深，不建议自行强压腋窝；用温和外旋活动代替。",
+    },
+  ],
+  rhomboids: [
+    {
+      id: "rhomboid-minor",
+      name: "小菱形肌",
+      english: "Rhomboid minor",
+      location: "位于大菱形肌上方，连接下颈椎、上胸椎与肩胛冈内侧端。",
+      role: "后缩并稳定肩胛骨，协助肩胛下回旋。",
+      training: ["俯卧 T 举", "高位弹力带划船", "肩胛后缩等长"],
+      release: "抱肩并长呼气，让肩胛外展；避免直接压脊柱。",
+    },
+    {
+      id: "rhomboid-major",
+      name: "大菱形肌",
+      english: "Rhomboid major",
+      location: "位于小菱形肌下方，从上胸椎斜向肩胛骨内侧缘。",
+      role: "强力后缩肩胛，并在划船和负重拉动中稳定肩胛骨。",
+      training: ["胸托划船", "弹力带划船停顿", "单臂绳索划船"],
+      release: "靠墙球压肩胛内侧肌腹，保持温和并避开骨缘。",
+    },
+  ],
+  triceps: [
+    {
+      id: "triceps-long-head",
+      name: "长头",
+      english: "Long head",
+      location: "位于上臂后内侧，起点跨过肩关节。",
+      role: "伸肘，同时参与肩伸和内收；手臂过顶时处于更长肌长。",
+      training: ["过顶绳索臂屈伸", "仰卧臂屈伸", "窄距卧推"],
+      release: "过顶屈肘拉伸，收住肋骨并避免肩前夹挤。",
+    },
+    {
+      id: "triceps-lateral-head",
+      name: "外侧头",
+      english: "Lateral head",
+      location: "位于上臂后外侧，形成常见的马蹄形轮廓。",
+      role: "在较高负荷伸肘时贡献明显，不跨过肩关节。",
+      training: ["直杆下压", "窄距俯卧撑", "双杠臂屈伸"],
+      release: "沿上臂后外侧轻滚，避开肘尖和尺神经区域。",
+    },
+    {
+      id: "triceps-medial-head",
+      name: "内侧头",
+      english: "Medial head",
+      location: "位于长头与外侧头深层，靠近肘部处可见。",
+      role: "几乎在所有伸肘负荷下工作，尤其承担低负荷和持续稳定。",
+      training: ["反握下压", "绳索下压", "窄距地板卧推"],
+      release: "轻柔活动肘关节并滚压上臂后下方，不追求强痛感。",
+    },
+  ],
+  lats: [
+    {
+      id: "upper-lat-fibers",
+      name: "上部纤维",
+      english: "Upper fibers",
+      location: "更靠近腋后和胸椎区域，纤维方向较水平。",
+      role: "偏向肩伸与水平拉动；这是纤维方向，不是独立肌头。",
+      training: ["宽肘单臂划船", "胸托划船", "直臂下压"],
+      release: "从腋后向下做温和滚压，避免直接压肋骨。",
+    },
+    {
+      id: "lower-lat-fibers",
+      name: "下部纤维",
+      english: "Lower fibers",
+      location: "从胸腰筋膜和髂嵴斜向上汇入肱骨。",
+      role: "偏向肩内收和从高位把手肘拉向髋部；同样不是独立肌头。",
+      training: ["窄中立握下拉", "单臂髋向下拉", "引体向上"],
+      release: "婴儿式把双手移向对侧，长呼气感受侧腰展开。",
+    },
+  ],
+  erectors: [
+    {
+      id: "iliocostalis",
+      name: "髂肋肌",
+      english: "Iliocostalis",
+      location: "竖脊肌最外侧柱，连接髂骨、肋骨和颈椎。",
+      role: "伸展和侧屈脊柱，并在负重时抵抗躯干弯曲。",
+      training: ["罗马尼亚硬拉", "单侧负重行走", "45 度挺身"],
+      release: "婴儿式侧伸与侧后方呼吸，不直接压肋骨。",
+    },
+    {
+      id: "longissimus",
+      name: "最长肌",
+      english: "Longissimus",
+      location: "竖脊肌中间柱，从骶骨延伸到胸椎、颈椎和颅骨。",
+      role: "脊柱伸展和同侧侧屈，是保持直立的重要长肌链。",
+      training: ["硬拉", "俯卧挺身", "早安式"],
+      release: "用猫牛式和节段呼吸恢复活动，不以强压脊柱为目标。",
+    },
+    {
+      id: "spinalis",
+      name: "棘肌",
+      english: "Spinalis",
+      location: "竖脊肌最内侧柱，紧邻棘突。",
+      role: "协助伸展脊柱，更多与其他竖脊肌共同工作。",
+      training: ["鸟狗式", "前抱负重深蹲", "等长髋铰链"],
+      release: "仰卧屈膝轻抱腿配合呼吸，避免泡沫轴直接滚脊柱。",
+    },
+    { id: "multifidus", name: "多裂肌", english: "Multifidus", location: "由许多短肌束跨越相邻椎骨，位于竖脊肌深层。", role: "提供节段性脊柱稳定，并在旋转、伸展时精细控制椎骨间运动。", training: ["鸟狗式", "死虫", "抗旋转推"], release: "用低强度猫牛式和呼吸恢复活动，不直接深压脊柱旁深层组织。" },
+    { id: "quadratus-lumborum", name: "腰方肌", english: "Quadratus lumborum", location: "位于后腹壁，从髂嵴连向第 12 肋和腰椎横突。", role: "单侧参与躯干侧屈和骨盆上提，双侧协助腰椎稳定及呼吸时固定第 12 肋。", training: ["单侧农夫行走", "侧桥", "行李箱硬拉"], release: "采用婴儿式侧伸和侧卧呼吸，不用硬球深压腰部。" },
+  ],
+  glutes: [
+    {
+      id: "glute-max",
+      name: "臀大肌",
+      english: "Gluteus maximus",
+      location: "臀部最表层、体积最大的肌肉。",
+      role: "强力伸髋和外旋，负责起身、冲刺和从深屈髋位置发力。",
+      training: ["杠铃臀推", "深蹲", "罗马尼亚硬拉"],
+      release: "4 字拉伸或球压臀部肌腹，避开坐骨。",
+    },
+    {
+      id: "glute-medius",
+      name: "臀中肌",
+      english: "Gluteus medius",
+      location: "位于髂骨外侧，上部较表浅、下部被臀大肌覆盖。",
+      role: "髋外展并稳定单腿骨盆；不同纤维还参与内旋或外旋。",
+      training: ["侧向台阶下蹲", "绳索髋外展", "单腿硬拉"],
+      release: "靠墙球压髋外侧上方，避开大转子骨点。",
+    },
+    {
+      id: "glute-min",
+      name: "臀小肌",
+      english: "Gluteus minimus",
+      location: "位于臀中肌深层，连接髂骨与股骨大转子。",
+      role: "协助髋外展、内旋并把股骨头稳定在髋臼内。",
+      training: ["侧卧髋外展", "弹力带侧走", "单腿站立骨盆控制"],
+      release: "采用温和髋内外旋活动，不用球深压髋关节前外侧。",
+    },
+  ],
+  "deep-hip": [
+    { id: "piriformis", name: "梨状肌", english: "Piriformis", location: "从骶骨前面穿向股骨大转子，位于臀大肌深层。", role: "髋伸展位协助外旋，髋屈曲位可参与外展，并帮助股骨头稳定。", training: ["侧卧髋外旋", "单腿平衡", "坐姿弹力带外旋"], release: "做温和 4 字活动；若出现沿腿放射的麻电感，立即停止按压。" },
+    { id: "obturator-internus", name: "闭孔内肌", english: "Obturator internus", location: "起于骨盆内侧闭孔膜，肌腱经坐骨小孔转向大转子。", role: "外旋髋关节并在屈髋时协助外展，是深层髋稳定系统的一部分。", training: ["坐姿髋外旋", "侧卧外旋", "单腿转向控制"], release: "采用舒适范围的髋旋转活动，不尝试从会阴或骨盆深处自行按压。" },
+    { id: "obturator-externus", name: "闭孔外肌", english: "Obturator externus", location: "覆盖闭孔膜外面，位于大腿内收肌深层。", role: "外旋股骨并帮助稳定股骨头，部分角度下也参与髋内收。", training: ["绳索髋外旋", "分腿蹲稳定", "侧向跨步"], release: "用髋关节主动旋转和内收肌温和拉伸代替腹股沟深压。" },
+    { id: "gemelli", name: "上、下孖肌", english: "Superior & inferior gemelli", location: "位于闭孔内肌腱上下方，连接坐骨与股骨大转子区域。", role: "与闭孔内肌共同完成髋外旋和股骨头稳定。", training: ["坐姿髋外旋", "侧卧外旋", "单腿站立转向"], release: "使用小幅髋旋转和臀后侧放松，不在坐骨附近强压。" },
+    { id: "quadratus-femoris", name: "股方肌", english: "Quadratus femoris", location: "从坐骨外侧横向连到股骨转子间嵴。", role: "强力外旋并协助髋内收，在站立转向时稳定髋后侧。", training: ["坐姿外旋", "宽站深蹲控制", "单腿硬拉"], release: "以温和髋内旋活动拉长，避免直接压坐骨神经走行区域。" },
+  ],
+  hamstrings: [
+    {
+      id: "biceps-femoris-long",
+      name: "股二头肌长头",
+      english: "Biceps femoris long head",
+      location: "位于大腿后外侧，从坐骨延伸到腓骨头。",
+      role: "伸髋、屈膝并外旋小腿，跨过髋和膝两个关节。",
+      training: ["罗马尼亚硬拉", "腿弯举", "单腿硬拉"],
+      release: "髋铰链式动态拉伸，避开腓骨头附近神经区域。",
+    },
+    {
+      id: "biceps-femoris-short",
+      name: "股二头肌短头",
+      english: "Biceps femoris short head",
+      location: "位于长头深层，仅跨过膝关节。",
+      role: "屈膝并外旋小腿，不直接参与伸髋。",
+      training: ["坐姿腿弯举", "俯卧腿弯举", "滑垫腿弯举"],
+      release: "屈伸膝做主动活动，避免在膝外侧末端强压。",
+    },
+    {
+      id: "semitendinosus",
+      name: "半腱肌",
+      english: "Semitendinosus",
+      location: "大腿后内侧较表浅，下段有较长肌腱。",
+      role: "伸髋、屈膝并内旋小腿，与半膜肌协同。",
+      training: ["北欧腿弯举", "罗马尼亚硬拉", "瑞士球腿弯举"],
+      release: "沿后内侧肌腹轻滚，从坐骨下方到膝上方。",
+    },
+    {
+      id: "semimembranosus",
+      name: "半膜肌",
+      english: "Semimembranosus",
+      location: "位于半腱肌深层，肌腱较宽扁。",
+      role: "伸髋、屈膝和内旋小腿，并帮助稳定膝后内侧。",
+      training: ["坐姿腿弯举", "长肌长髋铰链", "反向超伸"],
+      release: "用主动直腿抬高温和活动，不直接压腘窝。",
+    },
+  ],
+  calves: [
+    {
+      id: "medial-gastrocnemius",
+      name: "腓肠肌内侧头",
+      english: "Medial gastrocnemius",
+      location: "形成小腿后侧上方较明显的内侧轮廓。",
+      role: "膝伸直时贡献跖屈，也协助屈膝和跑跳推进。",
+      training: ["站姿提踵", "单腿提踵", "跳绳"],
+      release: "直膝靠墙拉伸，脚尖保持朝前。",
+    },
+    {
+      id: "lateral-gastrocnemius",
+      name: "腓肠肌外侧头",
+      english: "Lateral gastrocnemius",
+      location: "位于小腿后外侧，与内侧头共同跨过膝关节。",
+      role: "与内侧头共同完成快速跖屈和屈膝，无法靠脚尖方向完全隔离。",
+      training: ["站姿提踵", "负重跳跃", "坡跑"],
+      release: "直膝小腿拉伸并轻滚肌腹，避开腓骨头。",
+    },
+    {
+      id: "soleus",
+      name: "比目鱼肌",
+      english: "Soleus",
+      location: "位于腓肠肌深层，只跨过踝关节。",
+      role: "屈膝位仍能强力跖屈，是站立、步行和耐力跑的重要抗重力肌。",
+      training: ["坐姿提踵", "屈膝单腿提踵", "屈膝等长提踵"],
+      release: "屈膝向前推的小腿拉伸，脚跟保持着地。",
+    },
+    { id: "plantaris", name: "跖肌", english: "Plantaris", location: "细长肌腹位于膝后外侧，长肌腱向下伴随跟腱区域。", role: "轻度协助屈膝与踝跖屈，力量贡献较小且部分人先天缺如。", training: ["提踵", "轻跳", "步行推进"], release: "采用普通小腿拉伸即可，不需要寻找细小肌腱单独滚压。" },
+    { id: "tibialis-posterior", name: "胫骨后肌", english: "Tibialis posterior", location: "位于小腿后侧深层，肌腱绕过内踝连接足内侧。", role: "完成足内翻和跖屈，并在站立、行走时动态支撑足弓。", training: ["弹力带内翻", "足弓控制提踵", "单腿平衡"], release: "活动踝足并轻柔放松小腿深层；内踝后方疼痛时不要压肌腱。" },
+    { id: "flexor-digitorum-longus", name: "趾长屈肌", english: "Flexor digitorum longus", location: "位于小腿后内侧深层，肌腱经内踝后方到第 2–5 趾。", role: "屈曲外侧四趾、协助跖屈，并在推蹬时维持足趾与足弓稳定。", training: ["短足练习", "毛巾抓地", "赤足提踵"], release: "轻柔伸展脚趾和足底，避免反复用力蜷趾造成抽筋。" },
+    { id: "flexor-hallucis-longus", name: "𧿹长屈肌", english: "Flexor hallucis longus", location: "位于小腿后外侧深层，肌腱穿过内踝后和足底到大脚趾。", role: "屈曲大脚趾，在跑跳和踮脚末端提供重要推蹬力量。", training: ["大脚趾下压", "单腿提踵", "足弓控制"], release: "伸展大脚趾并轻滚足底；大脚趾关节疼痛时减少末端推蹬负荷。" },
+    { id: "popliteus", name: "腘肌", english: "Popliteus", location: "位于膝关节后方深层，从股骨外侧连向胫骨后面。", role: "在屈膝开始时帮助“解锁”膝关节，并控制胫骨和股骨的细微旋转。", training: ["小幅屈膝控制", "台阶下蹲", "单腿平衡"], release: "通过温和屈伸膝活动恢复，不直接用球压膝窝血管神经区域。" },
+    { id: "foot-intrinsics", name: "足内在肌", english: "Intrinsic foot muscles", location: "位于足底和跖骨之间，包括足底短肌、骨间肌与蚓状肌。", role: "维持足弓、控制脚趾并在站立、走跑时调整足底受力。", training: ["短足练习", "脚趾瑜伽", "赤足单腿平衡"], release: "用软球轻滚足底并逐趾活动；足底急性刺痛时不要强行滚压。" },
+  ],
+};
+
+const PART_COUNT = Object.values(PARTS_BY_MUSCLE).reduce((total, parts) => total + (parts?.length ?? 0), 0);
+
+const VIEW_DEFAULTS: Record<BodyView, string> = { front: "chest", back: "lats" };
+
+function ArrowIcon() {
+  return <span aria-hidden="true">↗</span>;
+}
+
+function MotionDemo({
+  muscle,
+  playing,
+  slow,
+  onTogglePlaying,
+  onToggleSlow,
+}: {
+  muscle: Muscle;
+  playing: boolean;
+  slow: boolean;
+  onTogglePlaying: () => void;
+  onToggleSlow: () => void;
+}) {
+  const motion = MOTION_BY_MUSCLE[muscle.id];
+
+  return (
+    <section className="motion-demo" aria-label={`${muscle.name}动态动作演示`}>
+      <div className="motion-demo-copy">
+        <div className="motion-kicker"><span /> 动态动作演示</div>
+        <h3>{motion.name}</h3>
+        <em>{motion.english}</em>
+        <p>{motion.cue}</p>
+        <div className="motion-controls" role="group" aria-label="动作演示控制">
+          <button type="button" className="primary" onClick={onTogglePlaying} aria-pressed={playing}>
+            <span aria-hidden="true">{playing ? "Ⅱ" : "▶"}</span>{playing ? "暂停" : "播放"}
+          </button>
+          <button type="button" onClick={onToggleSlow} aria-pressed={slow}>{slow ? "1× 常速" : "0.5× 慢速"}</button>
+        </div>
+      </div>
+
+      <div className="motion-canvas" role="img" aria-label={`${muscle.name}完成${motion.name}的循环动作模型`}>
+        <div
+          key={muscle.id}
+          className={`kinetic-figure motion-${motion.kind} ${playing ? "is-playing" : "is-paused"} ${slow ? "is-slow" : ""}`}
+          data-muscle={muscle.id}
+        >
+          <span className="figure-axis" aria-hidden="true" />
+          <span className="figure-shadow" aria-hidden="true" />
+          <div className="figure-upper" aria-hidden="true">
+            <span className="figure-head" />
+            <span className="figure-neck" />
+            <span className="figure-torso">
+              <i className="figure-zone zone-chest" />
+              <i className="figure-zone zone-core" />
+              <i className="figure-zone zone-back" />
+            </span>
+            <i className="figure-shoulder shoulder-left" />
+            <i className="figure-shoulder shoulder-right" />
+            <span className="figure-arm arm-left">
+              <i className="figure-zone zone-upper-arm" />
+              <span className="figure-forearm"><i className="figure-zone zone-forearm" /><span className="figure-hand" /></span>
+            </span>
+            <span className="figure-arm arm-right">
+              <i className="figure-zone zone-upper-arm" />
+              <span className="figure-forearm"><i className="figure-zone zone-forearm" /><span className="figure-hand" /></span>
+            </span>
+          </div>
+          <span className="figure-pelvis"><i className="figure-zone zone-glutes" /></span>
+          <span className="figure-leg leg-left">
+            <i className="figure-zone zone-thigh" />
+            <span className="figure-shin"><i className="figure-zone zone-shin" /><span className="figure-foot" /></span>
+          </span>
+          <span className="figure-leg leg-right">
+            <i className="figure-zone zone-thigh" />
+            <span className="figure-shin"><i className="figure-zone zone-shin" /><span className="figure-foot" /></span>
+          </span>
+        </div>
+        <span className="motion-phase">收缩 <i /> 还原</span>
+      </div>
+    </section>
+  );
+}
+
+export default function Home() {
+  const [bodyView, setBodyView] = useState<BodyView>("front");
+  const [activeId, setActiveId] = useState("chest");
+  const [activePartId, setActivePartId] = useState(PARTS_BY_MUSCLE.chest?.[0]?.id ?? "");
+  const [query, setQuery] = useState("");
+  const [motionPlaying, setMotionPlaying] = useState(true);
+  const [motionSlow, setMotionSlow] = useState(false);
+
+  const activeMuscle = MUSCLES.find((muscle) => muscle.id === activeId) ?? MUSCLES[0];
+  const activeParts = PARTS_BY_MUSCLE[activeMuscle.id] ?? [];
+  const activePart = activePartId ? activeParts.find((part) => part.id === activePartId) : undefined;
+  const visibleMuscles = MUSCLES.filter((muscle) => muscle.view === bodyView);
+  const searchResults = useMemo(() => {
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) return visibleMuscles;
+    return MUSCLES.filter((muscle) => {
+      const partTerms = (PARTS_BY_MUSCLE[muscle.id] ?? []).map((part) => `${part.name} ${part.english}`).join(" ");
+      return `${muscle.name} ${muscle.english} ${muscle.region} ${partTerms}`.toLowerCase().includes(keyword);
+    });
+  }, [query, visibleMuscles]);
+
+  const selectMuscle = (muscle: Muscle, requestedPartId?: string) => {
+    const parts = PARTS_BY_MUSCLE[muscle.id] ?? [];
+    const nextPartId = requestedPartId === "" ? "" : parts.some((part) => part.id === requestedPartId) ? requestedPartId : parts[0]?.id;
+    setActiveId(muscle.id);
+    setActivePartId(nextPartId ?? "");
+    setBodyView(muscle.view);
+  };
+
+  const changeView = (nextView: BodyView) => {
+    const nextMuscleId = VIEW_DEFAULTS[nextView];
+    setBodyView(nextView);
+    setActiveId(nextMuscleId);
+    setActivePartId(PARTS_BY_MUSCLE[nextMuscleId]?.[0]?.id ?? "");
+    setQuery("");
+  };
+
+  return (
+    <main className="site-shell">
+      <header className="topbar">
+        <a className="brand" href="#top" aria-label="肌图首页">
+          <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
+          <span>肌图 <b>MUSCLE MAP</b></span>
+        </a>
+        <nav className="topnav" aria-label="主要导航">
+          <a href="#explorer">肌群图谱</a>
+          <a href="#guide">使用指南</a>
+        </nav>
+        <a className="header-cta" href="#explorer">开始探索 <ArrowIcon /></a>
+      </header>
+
+      <section className="intro" id="top">
+        <div>
+          <p className="eyebrow"><span /> 人体肌群交互图谱</p>
+          <h1>看懂每一次<br /><em>发力。</em></h1>
+        </div>
+        <div className="intro-copy">
+          <p>从结构出发，理解动作。先定位大肌群，再深入肌束与肌头，分别掌握它们的功能、训练偏向和恢复策略。</p>
+          <div className="intro-stat">
+            <div><strong>{MUSCLES.length}</strong><span>大肌群</span></div>
+            <i>+</i>
+            <div><strong>{PART_COUNT}</strong><span>精细结构</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="explorer" id="explorer">
+        <div className="anatomy-card">
+          <div className="card-toolbar">
+            <div className="model-toolbar-actions">
+              <div className="view-switch" role="group" aria-label="选择人体视角">
+                <button className={bodyView === "front" ? "active" : ""} onClick={() => changeView("front")} aria-pressed={bodyView === "front"}>正面</button>
+                <button className={bodyView === "back" ? "active" : ""} onClick={() => changeView("back")} aria-pressed={bodyView === "back"}>背面</button>
+              </div>
+            </div>
+            <label className="search-box">
+              <span aria-hidden="true">⌕</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索肌群、肌束或肌头" aria-label="搜索肌群或精细结构" />
+              {query && <button onClick={() => setQuery("")} aria-label="清除搜索">×</button>}
+            </label>
+          </div>
+
+          <div className="anatomy-stage anatomy-stage-3d">
+            <Anatomy3D
+              view={bodyView}
+              activeId={activeId}
+              activePartId={activePartId}
+              muscles={MUSCLES}
+              onSelect={(muscleId, partId) => {
+                const muscle = MUSCLES.find((item) => item.id === muscleId);
+                if (muscle) selectMuscle(muscle, partId);
+              }}
+            />
+          </div>
+
+          <div className="muscle-rail" aria-label="肌群精准选择">
+            <div className="rail-meta"><span>{query ? "搜索结果" : "精准肌群目录"}</span><b>{searchResults.length.toString().padStart(2, "0")}</b></div>
+            <div className="muscle-chips">
+              {searchResults.map((muscle) => (
+                <button key={muscle.id} className={activeId === muscle.id ? "active" : ""} onClick={() => selectMuscle(muscle)}>
+                  <span>{muscle.name}</span><small>{muscle.english}</small>
+                  {(PARTS_BY_MUSCLE[muscle.id]?.length ?? 0) > 0 && <em>{PARTS_BY_MUSCLE[muscle.id]?.length} 细分</em>}
+                </button>
+              ))}
+              {searchResults.length === 0 && <p className="empty-state">暂未找到，试试“长头”“中束”或英文名称。</p>}
+            </div>
+          </div>
+        </div>
+
+        <aside className="detail-panel" aria-live="polite">
+          <div className="detail-head">
+            <div>
+              <span className="detail-index">{(MUSCLES.findIndex((item) => item.id === activeMuscle.id) + 1).toString().padStart(2, "0")}</span>
+              <span className="region-pill">{activeMuscle.region} · {activeMuscle.view === "front" ? "正面" : "背面"}</span>
+              {activeParts.length > 0 && <span className="part-count-pill">{activeParts.length} 个细分</span>}
+            </div>
+            <p>当前肌群</p>
+          </div>
+
+          <div className="muscle-title">
+            <h2>{activeMuscle.name}</h2>
+            <p>{activeMuscle.english}</p>
+          </div>
+          <p className="muscle-summary">{activeMuscle.summary}</p>
+
+          <MotionDemo
+            muscle={activeMuscle}
+            playing={motionPlaying}
+            slow={motionSlow}
+            onTogglePlaying={() => setMotionPlaying((value) => !value)}
+            onToggleSlow={() => setMotionSlow((value) => !value)}
+          />
+
+          <section className="part-explorer" aria-label={`${activeMuscle.name}精细结构`}>
+            <div className="part-explorer-head">
+              <div><span>精细结构</span><h3>选择肌束 / 肌头</h3></div>
+              <small>{activeParts.length > 0 ? `${activeParts.length.toString().padStart(2, "0")} PARTS` : "WHOLE MUSCLE"}</small>
+            </div>
+            {activeParts.length > 0 ? (
+              <>
+                <div className="part-tabs" role="tablist" aria-label="选择精细结构">
+                  {activeParts.map((part) => (
+                    <button
+                      key={part.id}
+                      role="tab"
+                      aria-selected={activePart?.id === part.id}
+                      className={activePart?.id === part.id ? "active" : ""}
+                      onClick={() => setActivePartId(part.id)}
+                    >
+                      <span>{part.name}</span><small>{part.english}</small>
+                    </button>
+                  ))}
+                </div>
+                {activePart ? (
+                  <article className="part-card" role="tabpanel" key={activePart.id}>
+                    <div className="part-card-title">
+                      <div><span>当前结构</span><h3>{activePart.name}</h3></div>
+                      <em>{activePart.english}</em>
+                    </div>
+                    <p className="part-location">{activePart.location}</p>
+                    <div className="part-details">
+                      <section>
+                        <span>主要作用</span>
+                        <p>{activePart.role}</p>
+                      </section>
+                      <section>
+                        <span>训练偏向</span>
+                        <div className="focus-tags">{activePart.training.map((item) => <b key={item}>{item}</b>)}</div>
+                      </section>
+                      <section>
+                        <span>放松提示</span>
+                        <p>{activePart.release}</p>
+                      </section>
+                    </div>
+                  </article>
+                ) : (
+                  <div className="whole-muscle-note"><span>完整肌肉</span><p>当前命中的是整块肌肉网格；上方标签可继续查看它的肌束、肌头或相关深层结构。</p></div>
+                )}
+              </>
+            ) : (
+              <div className="whole-muscle-note"><span>单一结构</span><p>{activeMuscle.name}在常规训练解剖中通常作为整体理解，不再人为拆分不存在的“肌头”。</p></div>
+            )}
+          </section>
+
+          <section className="detail-section">
+            <div className="section-label"><span>01</span><h3>整体如何工作</h3></div>
+            <ul className="function-list">
+              {activeMuscle.functions.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </section>
+
+          <section className="detail-section">
+            <div className="section-label"><span>02</span><h3>肌群训练</h3><small>动作 · 处方 · 要点</small></div>
+            <div className="training-list">
+              {activeMuscle.training.map((item, index) => (
+                <article key={item.name}>
+                  <b>{String.fromCharCode(65 + index)}</b>
+                  <div><h4>{item.name}</h4><p>{item.cue}</p></div>
+                  <strong>{item.dose}</strong>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="detail-section recovery-section">
+            <div className="section-label"><span>03</span><h3>整体放松</h3><small>慢一点，以舒适为准</small></div>
+            <div className="recovery-grid">
+              {activeMuscle.recovery.map((item) => (
+                <article key={item.name}>
+                  <span className="recovery-icon" aria-hidden="true">↔</span>
+                  <h4>{item.name}</h4><strong>{item.dose}</strong><p>{item.cue}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <div className="safety-note"><span>!</span><p><strong>训练提醒</strong>{activeMuscle.caution}</p></div>
+        </aside>
+      </section>
+
+      <section className="guide" id="guide">
+        <p className="eyebrow"><span /> 使用指南</p>
+        <div className="guide-layout">
+          <h2>先理解，<br />再训练。</h2>
+          <div className="guide-steps">
+            <article><b>01</b><div><h3>定位肌群</h3><p>切换正面与背面，点击身体标记，或直接搜索名称。</p></div></article>
+            <article><b>02</b><div><h3>深入结构</h3><p>切换肌束或肌头，理解不同纤维的位置、作用与训练偏向。</p></div></article>
+            <article><b>03</b><div><h3>练后恢复</h3><p>用温和拉伸、呼吸和滚压帮助恢复；疼痛不等于有效。</p></div></article>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <div className="brand footer-brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><span>肌图 <b>MUSCLE MAP</b></span></div>
+        <p>把复杂的人体结构，变成可以理解与实践的知识。</p>
+        <p className="disclaimer">内容仅用于学习与一般健身参考，不能替代医生、物理治疗师或其他专业人士的个体评估。</p>
+      </footer>
+    </main>
+  );
+}
