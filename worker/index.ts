@@ -29,6 +29,21 @@ const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.pathname === "/models/muscular.glb") {
+      const modelResponse = await fetch("https://www.adamasdesigns.com/models/muscular.glb", {
+        headers: { Accept: "model/gltf-binary, application/octet-stream;q=0.9" },
+      });
+      if (!modelResponse.ok || !modelResponse.body) {
+        return new Response("3D model is temporarily unavailable", { status: 502 });
+      }
+
+      const headers = new Headers(modelResponse.headers);
+      headers.set("Content-Type", "model/gltf-binary");
+      headers.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      headers.set("Access-Control-Allow-Origin", "*");
+      return new Response(modelResponse.body, { status: 200, headers });
+    }
+
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {

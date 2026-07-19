@@ -30,12 +30,13 @@ test("server-renders the medical 3D muscle map", async () => {
 });
 
 test("uses a segmented medical model with true mesh picking and a safe fallback", async () => {
-  const [model, styles, page, packageJson, vercelConfig] = await Promise.all([
+  const [model, styles, page, packageJson, vercelConfig, worker] = await Promise.all([
     readFile(new URL("../app/Anatomy3D.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
   ]);
 
   assert.match(model, /cdn\.babylonjs\.com\/babylon\.js/);
@@ -58,5 +59,7 @@ test("uses a segmented medical model with true mesh picking and a safe fallback"
   assert.match(page, /<Anatomy3D/);
   assert.doesNotMatch(page, /interactive-muscle-dot/);
   assert.match(vercelConfig, /models\/muscular\.glb/);
+  assert.match(worker, /url\.pathname === "\/models\/muscular\.glb"/);
+  assert.match(worker, /adamasdesigns\.com\/models\/muscular\.glb/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
